@@ -81,9 +81,9 @@ int Stage::PerformProfilerTest(){
 
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<50){
+	while((iteration_index++)<5){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
-		
+		WaitUserProfileModeToFinish(AxisX);		
 		WaitControllerToGetReady();
 		ClearOldProfile();
 		EvaluateProfile();
@@ -92,18 +92,36 @@ int Stage::PerformProfilerTest(){
 		WaitControllerToGetReady();
 		MoveStageBlocking(AxisX, XPOStoP[0]);		
 //		MoveStageBlocking(AxisZ, ZPOStoP[0]);
-		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-				
+		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
 		WaitControllerToGetReady();
+
+
 		std::clock_t start;
-		start = std::clock();
-		GenerateAndRunProfile(AxisX);
-		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
 		std::clock_t end;
+		start = std::clock();
+		GenerateAndRunProfile(AxisX);	
+
+		bool OnTarget=false;
+		bool Moving=true;
+		bool UserProfileActive=true;
+		bool CalcTarget=false;
+
+		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
+			OnTarget=IsOnTarget(AxisX);
+			Moving=IsMoving(AxisX);
+			UserProfileActive=IsUserProfileActive(AxisX);
+			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
+			end = std::clock();			
+			double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
+			profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget={1}, Moving={2}, UserProfileActive={3}, CalcTarget={4}",millisec,OnTarget,Moving,UserProfileActive,CalcTarget);
+			Sleep(100);
+		}
+
 		end = std::clock();
+		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
 		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
 		profiler_log_file->WriteLine("Time passed: {0} ms",millisec);
-		profiler_log_file->WriteLine("");
+		profiler_log_file->WriteLine("");	
 	}
 
 	return 0;
@@ -172,6 +190,12 @@ double Stage::GetPosition(const char *Axis)
 void Stage::MoveStageBlocking(const char *Axis, double Position)
 {
 	MoveStage(Axis, Position);
+	WaitStageToStopMoving(Axis);
+}
+
+// wait stage to stop moving
+void Stage::WaitStageToStopMoving(const char *Axis)
+{	
 	bool bIsMoving = true;
 	while(bIsMoving == true) {
 		bIsMoving=IsMoving(Axis);		
@@ -186,6 +210,21 @@ bool Stage::IsMoving(const char *Axis)
 	HandleError(C843_IsMoving(ID, Axis, &bIsMoving),"C843_IsMoving");
 	
 	if (bIsMoving == TRUE)
+	{
+		return true;
+	}else{
+		return false;
+	}
+}
+
+// check is stage is on target
+bool Stage::IsOnTarget(const char *Axis)
+{
+	BOOL bIsOnTarget;
+	
+	HandleError(C843_qONT(ID, Axis, &bIsOnTarget),"C843_qONT");
+	
+	if (bIsOnTarget == TRUE)
 	{
 		return true;
 	}else{
@@ -248,10 +287,9 @@ void Stage::GenerateAndRunProfile(const char *Axis)
 	}
 	
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");
-	long DataSetsPerBlocksIndex[1] = {0};
-	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");
-
-	WaitUserProfileModeToFinish(Axis);
+	long DataSetsPerBlocksIndex[1] = {0};	
+	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
+//	WaitStageToStopMoving(Axis);	
 }
 
 // clear profile

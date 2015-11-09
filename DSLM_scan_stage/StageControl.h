@@ -19,6 +19,9 @@ public:
 	static int PerformProfilerTest();
 	static double MoveStage(const char *Axis, double Position);
 	static void MoveStageBlocking(const char *Axis, double Position);
+	static void WaitStageToStopMoving(const char *Axis);
+
+	static bool Stage::IsOnTarget(const char *Axis);
 
 	static double GetPosition(const char *Axis);
 	static bool Stage::IsMoving(const char *Axis);
