@@ -15,7 +15,7 @@ public:
 	Stage();
 	~Stage();
 
-	static int Initialize();
+	static void Initialize();
 	static int PerformProfilerTest();
 	static double MoveStage(const char *Axis, double Position);
 	static void MoveStageBlocking(const char *Axis, double Position);
@@ -24,9 +24,8 @@ public:
 	static bool Stage::IsMoving(const char *Axis);
 	static bool Stage::IsUserProfileActive(const char *Axis);
 
-	static bool Stage::GenerateProfile(const char *Axis);
-	static bool Stage::Profiler2Axis(const char *Axis2, const char *Axis0, const char *Axis1, array< double>^ InitialPosX, array< double>^ InitialPosZ, array< double>^ XVel, array< double>^ ZVel, int Iteration);
-	static bool Stage::ClearOldProfile();
+	static void Stage::GenerateAndRunProfile(const char *Axis);
+	static void Stage::ClearOldProfile();
 
 	static String^ Stage::ReadError();
 	static bool Stage::DidErrorOccur(BOOL error, String^ errorString);
@@ -44,12 +43,6 @@ public:
 
 private:
 	static int ID;
-	static double posX;
-	static double posY;
-	static double posZ;
-	static double velX;
-	static double velY;
-	static double velZ;
 
 	static int numElementsInProfile;
 	static array< double>^ ProfileIntervalTimes;
