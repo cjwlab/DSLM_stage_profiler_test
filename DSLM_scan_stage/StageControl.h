@@ -22,7 +22,8 @@ public:
 
 	static double GetPosition(const char *Axis);
 	static bool Stage::IsMoving(const char *Axis);
-	static bool Stage::IsUserProfileActive(const char *Axis);
+	static bool Stage::IsUserProfileActive(const char *Axis);	
+	static void WaitUserProfileModeToFinish(const char *Axis);		   
 
 	static void Stage::GenerateAndRunProfile(const char *Axis);
 	static void Stage::ClearOldProfile();
@@ -49,11 +50,6 @@ private:
 
 	static array< double>^ XPOStoP;
 	static array< double>^ XVELtoP;
-
-	static const char *AxisZ = "1";
-	static const char *AxisX = "2";
-	static const char *AxisY = "3";
-	static const char *AxisZX = "12";
 
 //	static array< double>^ ZPOStoP;
 //	static array< double>^ ZVELtoP;

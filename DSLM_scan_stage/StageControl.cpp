@@ -13,7 +13,7 @@ using namespace stageNameSpace;
 Stage::Stage()
 {
 // initialise and open log file
-	String^ fileName = "profiler_log_file.txt";
+	String^ fileName = "D:\\profiler_log_file.txt";
 	profiler_log_file = gcnew StreamWriter(fileName);
 }
 
@@ -63,10 +63,15 @@ int Stage::PerformProfilerTest(){
 	numElementsInProfile=2;
 	AllocateProfileArrays();
 
+	char *AxisZ = "1";
+	char *AxisX = "2";
+	char *AxisY = "3";
+	char *AxisZX = "12";
+
 // profile definition
 	XPOStoP[0]=0.0;	// first stage position
-	XPOStoP[1]=1.0; // second stage position
-	XVELtoP[0]=0.2; // stage velocity
+	XPOStoP[1]=2.0; // second stage position
+	XVELtoP[0]=0.2*2; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
 // this needs to be checked	
@@ -78,14 +83,18 @@ int Stage::PerformProfilerTest(){
 	int iteration_index=0;
 	while((iteration_index++)<50){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
+		
+		WaitControllerToGetReady();
 		ClearOldProfile();
 		EvaluateProfile();
 
 // move to initial position
-		MoveStageBlocking(AxisX, XPOStoP[0]);
+		WaitControllerToGetReady();
+		MoveStageBlocking(AxisX, XPOStoP[0]);		
 //		MoveStageBlocking(AxisZ, ZPOStoP[0]);
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-		
+				
+		WaitControllerToGetReady();
 		std::clock_t start;
 		start = std::clock();
 		GenerateAndRunProfile(AxisX);
@@ -164,7 +173,7 @@ void Stage::MoveStageBlocking(const char *Axis, double Position)
 {
 	MoveStage(Axis, Position);
 	bool bIsMoving = true;
-	while(bIsMoving == TRUE) {
+	while(bIsMoving == true) {
 		bIsMoving=IsMoving(Axis);		
 	}	
 }
@@ -204,10 +213,19 @@ bool Stage::IsUserProfileActive(const char *Axis)
 
 }
 
+// wait user profile to become non active
+void Stage::WaitUserProfileModeToFinish(const char *Axis)
+{
+	bool isActive=true;
+	while (isActive==true){
+		isActive=IsUserProfileActive(Axis);
+	}
+}
+
 void Stage::GenerateAndRunProfile(const char *Axis)
 {
 	long DatasetPerblock[1] = {numElementsInProfile};		//UPC
-	long Datasetlength[1] ={2};	//UPC length of parameter set
+	long Datasetlength[1] ={3};	//UPC length of parameter set
 	const char* Cluster = "A";	//UPC, UPB
 	
 	long DatasetToClear[] = {-1}; // use to clear blocks from a cluster
@@ -225,13 +243,15 @@ void Stage::GenerateAndRunProfile(const char *Axis)
 	for (int i=0;i<numElementsInProfile;i++)
 	{
 		long DataSetsPerBlocksIndex[1] = {i};	//UPD
-		double ValuesToInput[2] = {ProfileIntervalTimes[i],XPOStoP[i]};	//UPD, Values to input: travel time, abs position, velocity.
+		double ValuesToInput[3] = {ProfileIntervalTimes[i],XPOStoP[i],XVELtoP[i]};	//UPD, Values to input: travel time, abs position, velocity.
 		HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
 	}
 	
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");
 	long DataSetsPerBlocksIndex[1] = {0};
 	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");
+
+	WaitUserProfileModeToFinish(Axis);
 }
 
 // clear profile
@@ -240,7 +260,6 @@ void Stage::ClearOldProfile()
 	long DatasetToClear[] = {-1};
 	const char *Clearer = "$";	
 	HandleError(C843_UPC(ID, Clearer, Clearer, DatasetToClear, DatasetToClear),"C843_UPC Clear profile");
-	WaitControllerToGetReady();
 }
 
 // read GCS error 
@@ -265,7 +284,7 @@ String^ Stage::ReadError()
 void Stage::HandleErrorAndWriteMessage(BOOL error,String^ message)
 {
 	String^ errorString="No error";
-	if (error==TRUE){
+	if (error==FALSE){
 		errorString=ReadError();
 	}
 	profiler_log_file->WriteLine(message+": "+errorString);
@@ -275,7 +294,7 @@ void Stage::HandleErrorAndWriteMessage(BOOL error,String^ message)
 void Stage::HandleError(BOOL error,String^ message)
 {
 	String^ errorString;
-	if (error==TRUE){
+	if (error==FALSE){
 		errorString=ReadError();
 		profiler_log_file->WriteLine(message+": "+errorString);		
 	}	
@@ -285,7 +304,7 @@ void Stage::HandleError(BOOL error,String^ message)
 bool Stage::DidErrorOccur(BOOL error, String^ errorString)
 {
 	errorString="No error";
-	if (error==TRUE){
+	if (error==FALSE){
 		errorString=ReadError();
 		return true;
 	}	
@@ -295,14 +314,12 @@ bool Stage::DidErrorOccur(BOOL error, String^ errorString)
 // poll until controller is ready
 void Stage::WaitControllerToGetReady()
 {
-	bool bFlag = FALSE;
+	long IsControllerReady=0;
 	
-	profiler_log_file->WriteLine("Polling with C843_IsControllerReady");
-	while(bFlag != TRUE){
-		HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"C843_IsControllerReady");
-		Sleep(200);
-	}
-	profiler_log_file->WriteLine("Controller is ready.");	
+	while(IsControllerReady != 1){
+		HandleError(C843_IsControllerReady(ID, &IsControllerReady),"C843_IsControllerReady");
+		Sleep(20);
+	}	
 }
 
 // run profiler for two axis
