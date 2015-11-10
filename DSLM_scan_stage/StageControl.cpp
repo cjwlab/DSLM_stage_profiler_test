@@ -70,7 +70,7 @@ int Stage::PerformProfilerTest(){
 
 // profile definition
 	XPOStoP[0]=0.0;	// first stage position
-	XPOStoP[1]=2.0; // second stage position
+	XPOStoP[1]=4.0; // second stage position
 	XVELtoP[0]=0.2*2; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
@@ -81,7 +81,7 @@ int Stage::PerformProfilerTest(){
 
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<5){
+	while((iteration_index++)<50){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 		WaitUserProfileModeToFinish(AxisX);		
 		WaitControllerToGetReady();
@@ -95,33 +95,67 @@ int Stage::PerformProfilerTest(){
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
 		WaitControllerToGetReady();
 
-
 		std::clock_t start;
 		std::clock_t end;
 		start = std::clock();
-		GenerateAndRunProfile(AxisX);	
+		GenerateAndRunProfile(AxisX);
 
 		bool OnTarget=false;
 		bool Moving=true;
 		bool UserProfileActive=true;
 		bool CalcTarget=false;
+		bool OnTargetPrevious=false;
+		bool MovingPrevious=true;
+		bool UserProfileActivePrevious=true;
+		bool CalcTargetPrevious=false;
+		int NumberOfWrites=0;
 
 		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
+			OnTargetPrevious=OnTarget;
+			MovingPrevious=Moving;
+			UserProfileActivePrevious=UserProfileActive;
+			CalcTargetPrevious=CalcTarget;
+
 			OnTarget=IsOnTarget(AxisX);
 			Moving=IsMoving(AxisX);
 			UserProfileActive=IsUserProfileActive(AxisX);
 			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
 			end = std::clock();			
 			double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
-			profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget={1}, Moving={2}, UserProfileActive={3}, CalcTarget={4}",millisec,OnTarget,Moving,UserProfileActive,CalcTarget);
-			Sleep(100);
+			if(OnTarget!=OnTargetPrevious)
+			{
+				NumberOfWrites++;
+				profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget->{1}, (X,Z)=({2},{3})",millisec,OnTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			}
+			if (Moving!=MovingPrevious)
+			{
+				NumberOfWrites++;
+				profiler_log_file->WriteLine("Time passed: {0} ms, Moving->{1}, (X,Z)=({2},{3})",millisec,Moving,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			}
+			if (UserProfileActive!=UserProfileActivePrevious)
+			{
+				NumberOfWrites++;
+				profiler_log_file->WriteLine("Time passed: {0} ms, UserProfileActive->{1}, (X,Z)=({2},{3})",millisec,UserProfileActive,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			}
+			if (CalcTarget!=CalcTargetPrevious)
+			{
+				NumberOfWrites++;
+				profiler_log_file->WriteLine("Time passed: {0} ms, CalcTarget->{1}, (X,Z)=({2},{3})",millisec,CalcTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			}
+			if (millisec>20000){
+				NumberOfWrites++;
+				profiler_log_file->WriteLine("Breaking with time limit.");
+				break;
+			}
 		}
 
 		end = std::clock();
-		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
 		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
-		profiler_log_file->WriteLine("Time passed: {0} ms",millisec);
-		profiler_log_file->WriteLine("");	
+		profiler_log_file->WriteLine("Time passed: {0} ms, Stage position after the profile (X,Z)=({1},{2})",millisec,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+		profiler_log_file->WriteLine("Number of writes: {0}",NumberOfWrites);
+		profiler_log_file->WriteLine("");
+
+		profiler_log_file->Flush();
 	}
 
 	return 0;
