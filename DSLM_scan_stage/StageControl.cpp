@@ -70,7 +70,7 @@ int Stage::PerformProfilerTest(){
 
 // profile definition
 	XPOStoP[0]=0.0;	// first stage position
-	XPOStoP[1]=4.0; // second stage position
+	XPOStoP[1]=2.0; // second stage position
 	XVELtoP[0]=0.2*2; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
@@ -100,29 +100,30 @@ int Stage::PerformProfilerTest(){
 		start = std::clock();
 		GenerateAndRunProfile(AxisX);
 
-		bool OnTarget=false;
-		bool Moving=true;
+//		bool OnTarget=false;
+//		bool Moving=true;
 		bool UserProfileActive=true;
-		bool CalcTarget=false;
-		bool OnTargetPrevious=false;
-		bool MovingPrevious=true;
+//		bool CalcTarget=false;
+//		bool OnTargetPrevious=false;
+//		bool MovingPrevious=true;
 		bool UserProfileActivePrevious=true;
-		bool CalcTargetPrevious=false;
+//		bool CalcTargetPrevious=false;
 		int NumberOfWrites=0;
 
-		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
-			OnTargetPrevious=OnTarget;
-			MovingPrevious=Moving;
+//		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
+		while(UserProfileActive==true){
+//			OnTargetPrevious=OnTarget;
+//			MovingPrevious=Moving;
 			UserProfileActivePrevious=UserProfileActive;
-			CalcTargetPrevious=CalcTarget;
+//			CalcTargetPrevious=CalcTarget;
 
-			OnTarget=IsOnTarget(AxisX);
-			Moving=IsMoving(AxisX);
+//			OnTarget=IsOnTarget(AxisX);
+//			Moving=IsMoving(AxisX);
 			UserProfileActive=IsUserProfileActive(AxisX);
-			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
+//			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
 			end = std::clock();			
 			double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
-			if(OnTarget!=OnTargetPrevious)
+	/*		if(OnTarget!=OnTargetPrevious)
 			{
 				NumberOfWrites++;
 				profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget->{1}, (X,Z)=({2},{3})",millisec,OnTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
@@ -141,7 +142,7 @@ int Stage::PerformProfilerTest(){
 			{
 				NumberOfWrites++;
 				profiler_log_file->WriteLine("Time passed: {0} ms, CalcTarget->{1}, (X,Z)=({2},{3})",millisec,CalcTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			}
+			}*/
 			if (millisec>20000){
 				NumberOfWrites++;
 				profiler_log_file->WriteLine("Breaking with time limit.");
@@ -174,7 +175,7 @@ void Stage::Initialize()
 		return;
 	}
 
-	HandleError(C843_CST(ID,"1234","DSLM.STAGE\nDSLM.STAGE\nDSLM.STAGE"),"initialisation C843_CST");
+	HandleError(C843_CST(ID,"1234","DSLM.STAGE\nDSLM.STAGE\nDSLM.STAGE\nNOSTAGE"),"initialisation C843_CST");
 	HandleError(C843_qCST(ID, "1234", stages, 1024),"initialisation C843_qCST");
 	System::String^ stageID = gcnew System::String(stages);
 	HandleError(C843_qSAI(ID, axes, 9),"initialisation C843_qSAI");
