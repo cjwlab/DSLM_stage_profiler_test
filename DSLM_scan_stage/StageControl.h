@@ -54,8 +54,8 @@ private:
 	static array< double>^ XPOStoP;
 	static array< double>^ XVELtoP;
 
-//	static array< double>^ ZPOStoP;
-//	static array< double>^ ZVELtoP;
+	static array< double>^ ZPOStoP;
+	static array< double>^ ZVELtoP;
 
 };
 

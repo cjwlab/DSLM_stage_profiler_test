@@ -36,15 +36,14 @@ void Stage::EvaluateProfile()
 	}
 // last time is zero by definition (terminates the profile)
 	ProfileIntervalTimes[numElementsInProfile-1]=0;
-
-	/*
+	
 // evaluate z-velocities between profile points
 	for(int i=0;i<(numElementsInProfile-1);i++){
 		ZVELtoP[i]=(ZPOStoP[i+1]-ZPOStoP[i])/ProfileIntervalTimes[i];
 	}
 // last velocity is zero by definition
 	ZVELtoP[numElementsInProfile-1]=0;
-*/
+
 }
 
 void Stage::AllocateProfileArrays()
@@ -53,8 +52,8 @@ void Stage::AllocateProfileArrays()
 	XPOStoP = gcnew array< double >(numElementsInProfile);
 	XVELtoP = gcnew array< double >(numElementsInProfile);
 
-//	ZPOStoP = gcnew array< double >(numElementsInProfile);
-//	ZVELtoP = gcnew array< double >(numElementsInProfile);
+	ZPOStoP = gcnew array< double >(numElementsInProfile);
+	ZVELtoP = gcnew array< double >(numElementsInProfile);
 }
 
 int Stage::PerformProfilerTest(){
@@ -74,6 +73,9 @@ int Stage::PerformProfilerTest(){
 	XVELtoP[0]=0.2*2; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
+	ZPOStoP[0]=6.0;	// first stage position
+	ZPOStoP[1]=7.0; // second stage position
+
 // this needs to be checked	
 	Initialize();
 
@@ -91,7 +93,7 @@ int Stage::PerformProfilerTest(){
 // move to initial position
 		WaitControllerToGetReady();
 		MoveStageBlocking(AxisX, XPOStoP[0]);		
-//		MoveStageBlocking(AxisZ, ZPOStoP[0]);
+		MoveStageBlocking(AxisZ, ZPOStoP[0]);
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
 		WaitControllerToGetReady();
 
@@ -110,7 +112,7 @@ int Stage::PerformProfilerTest(){
 			OnTarget=IsOnTarget(AxisX);
 			Moving=IsMoving(AxisX);
 			UserProfileActive=IsUserProfileActive(AxisX);
-			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
+			CalcTarget=((abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01)&(abs(Stage::GetPosition(AxisZ)-ZPOStoP[numElementsInProfile-1])<0.01));
 			end = std::clock();			
 			double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
 			profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget={1}, Moving={2}, UserProfileActive={3}, CalcTarget={4}",millisec,OnTarget,Moving,UserProfileActive,CalcTarget);
