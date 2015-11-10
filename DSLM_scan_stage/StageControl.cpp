@@ -83,22 +83,23 @@ int Stage::PerformProfilerTest(){
 	int iteration_index=0;
 	while((iteration_index++)<50){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
-		WaitUserProfileModeToFinish(AxisX);		
-		WaitControllerToGetReady();
+//		WaitUserProfileModeToFinish(AxisX);		
+//		WaitControllerToGetReady();
 		ClearOldProfile();
 		EvaluateProfile();
 
 // move to initial position
-		WaitControllerToGetReady();
+//		WaitControllerToGetReady();
 		MoveStageBlocking(AxisX, XPOStoP[0]);		
 //		MoveStageBlocking(AxisZ, ZPOStoP[0]);
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
-		WaitControllerToGetReady();
+//		WaitControllerToGetReady();
 
 		std::clock_t start;
 		std::clock_t end;
 		start = std::clock();
 		GenerateAndRunProfile(AxisX);
+		Sleep(5000+100);
 
 //		bool OnTarget=false;
 //		bool Moving=true;
@@ -112,6 +113,7 @@ int Stage::PerformProfilerTest(){
 
 //		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
 		while(UserProfileActive==true){
+			Sleep(100);
 //			OnTargetPrevious=OnTarget;
 //			MovingPrevious=Moving;
 			UserProfileActivePrevious=UserProfileActive;
@@ -233,6 +235,7 @@ void Stage::WaitStageToStopMoving(const char *Axis)
 {	
 	bool bIsMoving = true;
 	while(bIsMoving == true) {
+		Sleep(100);
 		bIsMoving=IsMoving(Axis);		
 	}	
 }
@@ -292,6 +295,7 @@ void Stage::WaitUserProfileModeToFinish(const char *Axis)
 {
 	bool isActive=true;
 	while (isActive==true){
+		Sleep(100);
 		isActive=IsUserProfileActive(Axis);
 	}
 }
@@ -391,7 +395,7 @@ void Stage::WaitControllerToGetReady()
 	
 	while(IsControllerReady != 1){
 		HandleError(C843_IsControllerReady(ID, &IsControllerReady),"C843_IsControllerReady");
-		Sleep(20);
+		Sleep(100);
 	}	
 }
 
