@@ -28,7 +28,11 @@ public:
 	static bool Stage::IsUserProfileActive(const char *Axis);	
 	static void WaitUserProfileModeToFinish(const char *Axis);		   
 
-	static void Stage::GenerateAndRunProfile(const char *Axis);
+//	static void Stage::GenerateAndRunProfile(const char *Axis);
+	static void Stage::GenerateProfile(const char *Axis);
+	static void Stage::RunProfile(const char *Axis);
+	static void Stage::ReadProfileConfiguration(const char *Axis);
+
 	static void Stage::ClearOldProfile();
 
 	static String^ Stage::ReadError();

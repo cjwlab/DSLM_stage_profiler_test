@@ -24,6 +24,8 @@ Stage::~Stage()
 
 int main(){
 	Stage stage;	
+	stage.Initialize();
+	
 	stage.PerformProfilerTest();
 }
 
@@ -71,97 +73,74 @@ int Stage::PerformProfilerTest(){
 // profile definition
 	XPOStoP[0]=0.0;	// first stage position
 	XPOStoP[1]=2.0; // second stage position
-	XVELtoP[0]=0.2*2; // stage velocity
+	XVELtoP[0]=0.2*4; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
-// this needs to be checked	
-	Initialize();
-
-	Sleep(2000);
+	ClearOldProfile();
+	EvaluateProfile();
+	GenerateProfile(AxisX);
 
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<50){
+	while((iteration_index++)<200){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
-//		WaitUserProfileModeToFinish(AxisX);		
-//		WaitControllerToGetReady();
-		ClearOldProfile();
-		EvaluateProfile();
 
 // move to initial position
-//		WaitControllerToGetReady();
 		MoveStageBlocking(AxisX, XPOStoP[0]);		
-//		MoveStageBlocking(AxisZ, ZPOStoP[0]);
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
-//		WaitControllerToGetReady();
-
-		std::clock_t start;
-		std::clock_t end;
-		start = std::clock();
-		GenerateAndRunProfile(AxisX);
-		Sleep(5000+100);
-
-//		bool OnTarget=false;
-//		bool Moving=true;
+		Sleep(1000);
+// run profile
+		ReadProfileConfiguration(Axis);
+		RunProfile(AxisX);
+// wait user profile mode to terminate
 		bool UserProfileActive=true;
-//		bool CalcTarget=false;
-//		bool OnTargetPrevious=false;
-//		bool MovingPrevious=true;
-		bool UserProfileActivePrevious=true;
-//		bool CalcTargetPrevious=false;
-		int NumberOfWrites=0;
-
-//		while((OnTarget==false) | (Moving==true) | (UserProfileActive==true) | (CalcTarget==false)){
-		while(UserProfileActive==true){
-			Sleep(100);
-//			OnTargetPrevious=OnTarget;
-//			MovingPrevious=Moving;
-			UserProfileActivePrevious=UserProfileActive;
-//			CalcTargetPrevious=CalcTarget;
-
-//			OnTarget=IsOnTarget(AxisX);
-//			Moving=IsMoving(AxisX);
+		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
-//			CalcTarget=(abs(Stage::GetPosition(AxisX)-XPOStoP[numElementsInProfile-1])<0.01);
-			end = std::clock();			
-			double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
-	/*		if(OnTarget!=OnTargetPrevious)
-			{
-				NumberOfWrites++;
-				profiler_log_file->WriteLine("Time passed: {0} ms, OnTarget->{1}, (X,Z)=({2},{3})",millisec,OnTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			}
-			if (Moving!=MovingPrevious)
-			{
-				NumberOfWrites++;
-				profiler_log_file->WriteLine("Time passed: {0} ms, Moving->{1}, (X,Z)=({2},{3})",millisec,Moving,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			}
-			if (UserProfileActive!=UserProfileActivePrevious)
-			{
-				NumberOfWrites++;
-				profiler_log_file->WriteLine("Time passed: {0} ms, UserProfileActive->{1}, (X,Z)=({2},{3})",millisec,UserProfileActive,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			}
-			if (CalcTarget!=CalcTargetPrevious)
-			{
-				NumberOfWrites++;
-				profiler_log_file->WriteLine("Time passed: {0} ms, CalcTarget->{1}, (X,Z)=({2},{3})",millisec,CalcTarget,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			}*/
-			if (millisec>20000){
-				NumberOfWrites++;
-				profiler_log_file->WriteLine("Breaking with time limit.");
-				break;
-			}
 		}
-
-		end = std::clock();
-		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
-		profiler_log_file->WriteLine("Time passed: {0} ms, Stage position after the profile (X,Z)=({1},{2})",millisec,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-		profiler_log_file->WriteLine("Number of writes: {0}",NumberOfWrites);
+		Sleep(1000);
+		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
 		profiler_log_file->WriteLine("");
-
 		profiler_log_file->Flush();
 	}
 
 	return 0;
+}
+// ask profile parameters
+void Stage::ReadProfileConfiguration(const char *Axis){
+	long iPararray[1];
+	long iCmdarray[1];
+	char AxisTemp[]="2";
+
+	HandleError(C843_qUPC(ID, "A",AxisTemp,iCmdarray, iPararray),"C843_qUPC ");
+	profiler_log_file->WriteLine("qUPC: cluster A=({0}, {1})",iCmdarray[0],iPararray[0]);
+
+	long dValarray0[1];
+	iCmdarray[0]=0;
+	for (int i=1;i<4;i++){
+		iPararray[0]=i;
+		HandleError(C843_qUPB(ID, "A",iCmdarray, iPararray,dValarray0),"C843_qUPB ");
+		profiler_log_file->WriteLine("qUPB: cluster A, block 0, value{0}={1}",iPararray[0],dValarray0[0]);
+	}
+
+	for (int i=0;i<2;i++){
+		iCmdarray[0]=i;
+		HandleError(C843_qUPA(ID, "A",iCmdarray, iPararray),"C843_qUPA ");
+		profiler_log_file->WriteLine("qUPA: cluster A, {0}={1}",iCmdarray[0],iPararray[0]);
+	}
+
+
+
+	iCmdarray[0]=0;
+	iPararray[0]=0;	
+	double dValarray[3];
+
+	for (int i=1;i<3;i++){
+		HandleError(C843_qUPD(ID, "A",iCmdarray, iPararray,dValarray),"C843_qUPD ");
+		iPararray[0]=i;	
+		profiler_log_file->WriteLine("qUPD cA b{0} d{1} = {2},{3},{4}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2]);
+	}
+	 
+	
 }
 
 // Initialise stage
@@ -181,8 +160,9 @@ void Stage::Initialize()
 	HandleError(C843_qCST(ID, "1234", stages, 1024),"initialisation C843_qCST");
 	System::String^ stageID = gcnew System::String(stages);
 	HandleError(C843_qSAI(ID, axes, 9),"initialisation C843_qSAI");
-	System::String^ axesID = gcnew System::String(axes);
+	System::String^ axesID = gcnew System::String(axes);	
 	HandleError(C843_INI(ID,axes),"initialisation C843_INI");
+	
 	bool bFlag = FALSE;
 	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
 	bFlag = FALSE;
@@ -213,6 +193,7 @@ void Stage::Initialize()
 	while(bIsMoving == TRUE){
 		HandleError(C843_IsMoving(ID, "3", &bIsMoving),"initialisation C843_IsMoving");
 	}
+	
 }
 
 // ask stage position
@@ -300,7 +281,7 @@ void Stage::WaitUserProfileModeToFinish(const char *Axis)
 	}
 }
 
-void Stage::GenerateAndRunProfile(const char *Axis)
+void Stage::GenerateProfile(const char *Axis)
 {
 	long DatasetPerblock[1] = {numElementsInProfile};		//UPC
 	long Datasetlength[1] ={3};	//UPC length of parameter set
@@ -320,17 +301,24 @@ void Stage::GenerateAndRunProfile(const char *Axis)
 	
 	for (int i=0;i<numElementsInProfile;i++)
 	{
-		long DataSetsPerBlocksIndex[1] = {i};	//UPD
+		long DataSetsPerBlocksIndex[1]={0};	//UPD
 		double ValuesToInput[3] = {ProfileIntervalTimes[i],XPOStoP[i],XVELtoP[i]};	//UPD, Values to input: travel time, abs position, velocity.
-		HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+		HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput1),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
 	}
-	
-	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");
-	long DataSetsPerBlocksIndex[1] = {0};	
-	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
-//	WaitStageToStopMoving(Axis);	
+
+//	WaitStageToStopMoving(Axis);		
 }
 
+void Stage::RunProfile(const char *Axis){
+	
+	const char* Cluster = "A";	//UPC, UPB	
+	long BlocksToconsiderIndex[1] = {0};	//UPB, UPD block index to be used		
+	long DataSetsPerBlocksIndex[1] = {0};	
+
+	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
+	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
+	ReadProfileConfiguration(Axis);
+}
 // clear profile
 void Stage::ClearOldProfile()
 {
