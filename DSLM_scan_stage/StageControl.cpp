@@ -92,6 +92,9 @@ int Stage::PerformProfilerTest(){
 // clear, generate and run the profile
 		ClearOldProfile();
 		GenerateProfile(AxisX);
+		profiler_log_file->WriteLine("");
+		ReadProfileConfiguration(AxisX);
+		profiler_log_file->WriteLine("");
 
 		RunProfile(AxisX);
 // wait user profile mode to terminate
@@ -144,12 +147,12 @@ void Stage::ReadProfileConfiguration(const char *Axis){
 
 	iCmdarray[0]=0;
 	iPararray[0]=0;	
-	double dValarray[3];
+	double dValarray[4];
 
-	for (int i=1;i<3;i++){
+	for (int i=1;i<5;i++){
 		HandleError(C843_qUPD(ID, "A",iCmdarray, iPararray,dValarray),"C843_qUPD ");
 		iPararray[0]=i;	
-		profiler_log_file->WriteLine("qUPD cA b{0} d{1} = {2},{3},{4}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2]);
+		profiler_log_file->WriteLine("qUPD cA b{0} d{1} = {2},{3},{4},{5}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2],dValarray[3]);
 	}
 	 
 	
