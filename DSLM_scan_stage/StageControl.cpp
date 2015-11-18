@@ -81,7 +81,7 @@ int Stage::PerformProfilerTest(){
 
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<20){
+	while((iteration_index++)<100){
 		std::clock_t    start;
 		start = std::clock();
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
@@ -102,7 +102,7 @@ int Stage::PerformProfilerTest(){
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
-		if ((Stage::GetPosition(AxisX)-5)<(-0.1)){
+		if ((Stage::GetPosition(AxisX)-36050/7200)<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
 		}
@@ -316,7 +316,7 @@ void Stage::GenerateProfile(const char *Axis)
 	
 	long DataSetsPerBlocksIndex[1];	//UPD
 	double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
-
+/*
 	DataSetsPerBlocksIndex[0]=0;
 	ValuesToInput[0]=1;
 	ValuesToInput[1]=0;
@@ -341,6 +341,32 @@ void Stage::GenerateProfile(const char *Axis)
 	ValuesToInput[2]=0;
 	ValuesToInput[3]=0;
 	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	*/
+	DataSetsPerBlocksIndex[0]=0;
+	ValuesToInput[0]=5.0/60.0;
+	ValuesToInput[1]=0.0;
+	ValuesToInput[2]=0.0;
+	ValuesToInput[3]=1.0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=1;
+	ValuesToInput[0]=60.0;
+	ValuesToInput[1]=25.0/7200.0;
+	ValuesToInput[2]=5.0/60.0;
+	ValuesToInput[3]=0.0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=2;
+	ValuesToInput[0]=5.0/60.0;
+	ValuesToInput[1]=36025.0/7200.0;
+	ValuesToInput[2]=5.0/60.0;
+	ValuesToInput[3]=-1.0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=3;
+	ValuesToInput[0]=0.0;
+	ValuesToInput[1]=36050.0/7200.0;
+	ValuesToInput[2]=0.0;
+	ValuesToInput[3]=0.0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+
 
 
 //	WaitStageToStopMoving(Axis);		
