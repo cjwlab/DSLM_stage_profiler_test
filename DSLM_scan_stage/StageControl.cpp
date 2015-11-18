@@ -76,32 +76,44 @@ int Stage::PerformProfilerTest(){
 	XVELtoP[0]=0.2*4; // stage velocity
 	XVELtoP[1]=0.0;	// zero velocity in the end by definition
 
-	ClearOldProfile();
 	EvaluateProfile();
-	GenerateProfile(AxisX);
+	int errorCount=0;
 
 // a loop for iterating the profile
 	int iteration_index=0;
 	while((iteration_index++)<200){
+		std::clock_t    start;
+		start = std::clock();
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
 // move to initial position
 		MoveStageBlocking(AxisX, XPOStoP[0]);		
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
-		Sleep(1000);
-// run profile
-		ReadProfileConfiguration(Axis);
+// clear, generate and run the profile
+		ClearOldProfile();
+		GenerateProfile(AxisX);
+
 		RunProfile(AxisX);
 // wait user profile mode to terminate
 		bool UserProfileActive=true;
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
-		Sleep(1000);
+		if ((Stage::GetPosition(AxisX)-5)<0.1){
+			profiler_log_file->WriteLine("ERROR");
+			errorCount++;
+		}
+
+		std::clock_t    end;
+		end = std::clock();
+		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
+
 		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+		profiler_log_file->WriteLine("Time elapsed={0}",millisec);
 		profiler_log_file->WriteLine("");
 		profiler_log_file->Flush();
 	}
+	profiler_log_file->WriteLine("Total error count={0}",errorCount);
 
 	return 0;
 }
@@ -283,8 +295,8 @@ void Stage::WaitUserProfileModeToFinish(const char *Axis)
 
 void Stage::GenerateProfile(const char *Axis)
 {
-	long DatasetPerblock[1] = {numElementsInProfile};		//UPC
-	long Datasetlength[1] ={3};	//UPC length of parameter set
+	long DatasetPerblock[1] = {4};		//UPC
+	long Datasetlength[1] ={4};	//UPC length of parameter set
 	const char* Cluster = "A";	//UPC, UPB
 	
 	long DatasetToClear[] = {-1}; // use to clear blocks from a cluster
@@ -299,12 +311,34 @@ void Stage::GenerateProfile(const char *Axis)
 // create blocks into the cluster A
 	HandleError(C843_UPB(ID, Cluster, BlocksToconsiderIndex, ParameterID, DatasetPerblock),"create profile C843_UPB create");
 	
-	for (int i=0;i<numElementsInProfile;i++)
-	{
-		long DataSetsPerBlocksIndex[1]={0};	//UPD
-		double ValuesToInput[3] = {ProfileIntervalTimes[i],XPOStoP[i],XVELtoP[i]};	//UPD, Values to input: travel time, abs position, velocity.
-		HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput1),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	}
+	long DataSetsPerBlocksIndex[1];	//UPD
+	double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
+
+	DataSetsPerBlocksIndex[0]=0;
+	ValuesToInput[0]=1;
+	ValuesToInput[1]=0;
+	ValuesToInput[2]=0;
+	ValuesToInput[3]=1;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=1;
+	ValuesToInput[0]=4;
+	ValuesToInput[1]=0.5;
+	ValuesToInput[2]=1;
+	ValuesToInput[3]=0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=2;
+	ValuesToInput[0]=1;
+	ValuesToInput[1]=4.5;
+	ValuesToInput[2]=1;
+	ValuesToInput[3]=-1;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	DataSetsPerBlocksIndex[0]=3;
+	ValuesToInput[0]=0;
+	ValuesToInput[1]=5;
+	ValuesToInput[2]=0;
+	ValuesToInput[3]=0;
+	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+
 
 //	WaitStageToStopMoving(Axis);		
 }
@@ -317,7 +351,6 @@ void Stage::RunProfile(const char *Axis){
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
 	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
-	ReadProfileConfiguration(Axis);
 }
 // clear profile
 void Stage::ClearOldProfile()
