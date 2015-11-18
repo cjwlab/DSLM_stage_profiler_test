@@ -81,7 +81,7 @@ int Stage::PerformProfilerTest(){
 
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<200){
+	while((iteration_index++)<20){
 		std::clock_t    start;
 		start = std::clock();
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
@@ -99,7 +99,7 @@ int Stage::PerformProfilerTest(){
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
-		if ((Stage::GetPosition(AxisX)-5)<0.1){
+		if ((Stage::GetPosition(AxisX)-5)<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
 		}
