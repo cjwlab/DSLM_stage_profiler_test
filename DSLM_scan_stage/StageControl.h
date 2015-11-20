@@ -52,14 +52,25 @@ public:
 private:
 	static int ID;
 
-	static int numElementsInProfile;
-	static array< double>^ ProfileIntervalTimes;
+	static int numElementsInPath;
+	static array< double>^ PathPointsX;
+	static array< double>^ PathPointsZ;
 
+	static int numElementsInProfileX;
+	static array< double>^ ProfileIntervalTimesX;
 	static array< double>^ XPOStoP;
 	static array< double>^ XVELtoP;
+	static array< double>^ XACCtoP;
 
-//	static array< double>^ ZPOStoP;
-//	static array< double>^ ZVELtoP;
+	static int numElementsInProfileZ;
+	static array< double>^ ProfileIntervalTimesZ;
+	static array< double>^ ZPOStoP;
+	static array< double>^ ZACCtoP;
+
+	static double ScannerFrameRate; // [steps per second]
+	static double StepSize; // [mm per step]
+	static double MaxAcceleration; // [mm per s^2]
+
 
 };
 

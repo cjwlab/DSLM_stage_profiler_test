@@ -15,6 +15,7 @@ Stage::Stage()
 // initialise and open log file
 	String^ fileName = "D:\\profiler_log_file.txt";
 	profiler_log_file = gcnew StreamWriter(fileName);
+	MaxAcceleration=8; // [mm per s^2]
 }
 
 Stage::~Stage()
@@ -24,7 +25,7 @@ Stage::~Stage()
 
 int main(){
 	Stage stage;	
-	stage.Initialize();
+//	stage.Initialize();
 	
 	stage.PerformProfilerTest();
 }
@@ -32,37 +33,98 @@ int main(){
 // compute profile parameters (time and velocity) based on positions and x-velocity
 void Stage::EvaluateProfile()
 {
-// evaluate times between profile points
-	for(int i=0;i<(numElementsInProfile-1);i++){
-		ProfileIntervalTimes[i]=(XPOStoP[i+1]-XPOStoP[i])/XVELtoP[i];
-	}
-// last time is zero by definition (terminates the profile)
-	ProfileIntervalTimes[numElementsInProfile-1]=0;
+	double ConstantXVelocity=ScannerFrameRate*StepSize; // [mm/s]
+	double TotalTravelTime=(PathPointsX[numElementsInPath-1]-PathPointsX[0]) / ConstantXVelocity; // [s]
+	double TimePerStep=1.0/ScannerFrameRate;
+	
+// times of the x profile
+	ProfileIntervalTimesX[0]=TimePerStep; // one step
+	ProfileIntervalTimesX[1]=TotalTravelTime-TimePerStep*2.0;
+	ProfileIntervalTimesX[2]=TimePerStep; // one step
+	ProfileIntervalTimesX[3]=0.0; // 0 to stop the motion
 
-	/*
-// evaluate z-velocities between profile points
-	for(int i=0;i<(numElementsInProfile-1);i++){
-		ZVELtoP[i]=(ZPOStoP[i+1]-ZPOStoP[i])/ProfileIntervalTimes[i];
+// accelerations of the x profile
+	XACCtoP[0]=MaxAcceleration;
+	XACCtoP[1]=0;	// constant velocity
+	XACCtoP[2]=-MaxAcceleration;
+	XACCtoP[3]=0; // 0 to stop the motion
+
+// velocities of the x profile
+	XVELtoP[0]=0;
+	XVELtoP[1]=ConstantXVelocity;
+	XVELtoP[2]=ConstantXVelocity;
+	XVELtoP[3]=0;
+
+// positions of the x profile
+	XPOStoP[0]=PathPointsX[0];
+	XPOStoP[1]=PathPointsX[0]+0.5*MaxAcceleration*TimePerStep*TimePerStep;
+	XPOStoP[2]=PathPointsX[numElementsInPath-1]-0.5*MaxAcceleration*TimePerStep*TimePerStep;
+	XPOStoP[3]=PathPointsX[numElementsInPath-1];
+
+	v1=rand-0.5;
+	t0=rand*10;
+	t2=t0+rand*100;
+	dz=rand-0.5;
+	k=sign(dz);
+	a=8;
+	t1=t2-sqrt((t2-t0)^2+(2*v1*(t2-t0)-2*dz)/a/k);
+	vc=v1+a*k*(t1-t0);
+	Dz=v1*(t1-t0)+a*k/2*(t1-t0)^2+vc*(t2-t1);
+	error=Dz-dz
+
+// times of the z profile
+	for(int ZProfileElement=0;ZProfileElement<numElementsInProfileZ;ZProfileElement++){
+		
 	}
-// last velocity is zero by definition
-	ZVELtoP[numElementsInProfile-1]=0;
-*/
+	ProfileIntervalTimesZ[0]=TimePerStep; // one step
+	ProfileIntervalTimesZ[1]=TotalTravelTime-TimePerStep*2.0;
+	ProfileIntervalTimesZ[2]=TimePerStep; // one step
+	ProfileIntervalTimesZ[3]=0.0; // 0 to stop the motion
+
+// accelerations of the z profile
+	ZACCtoP[0]=MaxAcceleration;
+	ZACCtoP[1]=0;	// constant velocity
+	ZACCtoP[2]=-MaxAcceleration;
+	ZACCtoP[3]=0; // 0 to stop the motion
+
+// velocities of the z profile
+	ZVELtoP[0]=0;
+	ZVELtoP[1]=ConstantXVelocity;
+	ZVELtoP[2]=ConstantXVelocity;
+	ZVELtoP[3]=0;
+
+// positions of the z profile
+	ZPOStoP[0]=PathPointsX[0];
+	ZPOStoP[1]=PathPointsX[0]+0.5*MaxAcceleration*TimePerStep*TimePerStep;
+	ZPOStoP[2]=PathPointsX[numElementsInPath-1]-0.5*MaxAcceleration*TimePerStep*TimePerStep;
+	ZPOStoP[3]=PathPointsX[numElementsInPath-1];
+	
 }
 
 void Stage::AllocateProfileArrays()
-{
-	ProfileIntervalTimes = gcnew array< double >(numElementsInProfile);
-	XPOStoP = gcnew array< double >(numElementsInProfile);
-	XVELtoP = gcnew array< double >(numElementsInProfile);
+{	
+	PathPointsX = gcnew array< double >(numElementsInPath);
+	PathPointsZ = gcnew array< double >(numElementsInPath);
 
-//	ZPOStoP = gcnew array< double >(numElementsInProfile);
-//	ZVELtoP = gcnew array< double >(numElementsInProfile);
+	numElementsInProfileX=4; // acceleration + constant velocity + deacceleration + stop
+	numElementsInProfileZ=2*numElementsInPath;
+
+	ProfileIntervalTimesX = gcnew array< double >(numElementsInProfileX);
+	XPOStoP = gcnew array< double >(numElementsInProfileX);
+	XVELtoP = gcnew array< double >(numElementsInProfileX);
+	XACCtoP = gcnew array< double >(numElementsInProfileX);
+
+	ProfileIntervalTimesZ = gcnew array< double >(numElementsInProfileZ);
+	ZPOStoP = gcnew array< double >(numElementsInProfileZ);
+	ZVELtoP = gcnew array< double >(numElementsInProfileZ);
+	ZACCtoP = gcnew array< double >(numElementsInProfileZ);
 }
 
 int Stage::PerformProfilerTest(){
 
 // number of points in the desired profile
-	numElementsInProfile=2;
+		
+	numElementsInPath=5;
 	AllocateProfileArrays();
 
 	char *AxisZ = "1";
@@ -70,11 +132,21 @@ int Stage::PerformProfilerTest(){
 	char *AxisY = "3";
 	char *AxisZX = "12";
 
-// profile definition
-	XPOStoP[0]=0.0;	// first stage position
-	XPOStoP[1]=2.0; // second stage position
-	XVELtoP[0]=0.2*4; // stage velocity
-	XVELtoP[1]=0.0;	// zero velocity in the end by definition
+// path defition definition [mm]
+	PathPointsX[0]=0.0;	
+	PathPointsX[1]=1.0;
+	PathPointsX[2]=2.0;
+	PathPointsX[3]=3.0;
+	PathPointsX[4]=4.0;
+
+	PathPointsZ[0]=0.0;	
+	PathPointsZ[1]=0.1;
+	PathPointsZ[2]=0.2;
+	PathPointsZ[3]=0.1;
+	PathPointsZ[4]=0.0;
+
+	ScannerFrameRate=50; // [steps per second]
+	StepSize=1.84; // [mm per step]
 
 	EvaluateProfile();
 	int errorCount=0;
@@ -177,7 +249,16 @@ void Stage::Initialize()
 	HandleError(C843_qSAI(ID, axes, 9),"initialisation C843_qSAI");
 	System::String^ axesID = gcnew System::String(axes);	
 	HandleError(C843_INI(ID,axes),"initialisation C843_INI");
-	
+
+	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
+	HandleError(C843_FPL(ID,"2"),"initialisation C843_FPL");
+	HandleError(C843_FNL(ID,"3"),"initialisation C843_FNL");
+	bool bFlag = FALSE;
+	while(bFlag != TRUE){
+		 HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
+	}
+
+/*
 	bool bFlag = FALSE;
 	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
 	bFlag = FALSE;
@@ -195,6 +276,7 @@ void Stage::Initialize()
 		 HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
 	}
 
+
 	HandleError(C843_MOV(ID, "1", &movr),"initialisation C843_MOV");
 	HandleError(C843_MOV(ID, "2", &movr),"initialisation C843_MOV");
 	HandleError(C843_MOV(ID, "3", &movr),"initialisation C843_MOV");
@@ -208,7 +290,8 @@ void Stage::Initialize()
 	while(bIsMoving == TRUE){
 		HandleError(C843_IsMoving(ID, "3", &bIsMoving),"initialisation C843_IsMoving");
 	}
-	
+*/	
+
 }
 
 // ask stage position
