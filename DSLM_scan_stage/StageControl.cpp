@@ -30,23 +30,23 @@ int main(){
 	stage.PerformProfilerTest();
 }
 
-// compute profile parameters (time and velocity) based on positions and x-velocity
+// compute profile parameters (time, position, velocity, acceleration) based on positions and x-velocity
 void Stage::EvaluateProfile()
 {
 	double ConstantXVelocity=ScannerFrameRate*StepSize; // [mm/s]
-	double TotalTravelTime=(PathPointsX[numElementsInPath-1]-PathPointsX[0]) / ConstantXVelocity; // [s]
 	double TimePerStep=1.0/ScannerFrameRate;
+	double TotalTravelTimeX=(PathPointsX[numElementsInPath-1]-PathPointsX[0]) / ConstantXVelocity + TimePerStep; // [s]	
 	
 // times of the x profile
 	ProfileIntervalTimesX[0]=TimePerStep; // one step
-	ProfileIntervalTimesX[1]=TotalTravelTime-TimePerStep*2.0;
+	ProfileIntervalTimesX[1]=TotalTravelTimeX-TimePerStep*2.0;
 	ProfileIntervalTimesX[2]=TimePerStep; // one step
 	ProfileIntervalTimesX[3]=0.0; // 0 to stop the motion
 
 // accelerations of the x profile
-	XACCtoP[0]=MaxAcceleration;
+	XACCtoP[0]=ConstantXVelocity/TimePerStep;
 	XACCtoP[1]=0;	// constant velocity
-	XACCtoP[2]=-MaxAcceleration;
+	XACCtoP[2]=-ConstantXVelocity/TimePerStep;
 	XACCtoP[3]=0; // 0 to stop the motion
 
 // velocities of the x profile
@@ -57,48 +57,68 @@ void Stage::EvaluateProfile()
 
 // positions of the x profile
 	XPOStoP[0]=PathPointsX[0];
-	XPOStoP[1]=PathPointsX[0]+0.5*MaxAcceleration*TimePerStep*TimePerStep;
-	XPOStoP[2]=PathPointsX[numElementsInPath-1]-0.5*MaxAcceleration*TimePerStep*TimePerStep;
+	XPOStoP[1]=PathPointsX[0]+0.5*(ConstantXVelocity/TimePerStep)*TimePerStep*TimePerStep;
+	XPOStoP[2]=PathPointsX[numElementsInPath-1]-0.5*(ConstantXVelocity/TimePerStep)*TimePerStep*TimePerStep;
 	XPOStoP[3]=PathPointsX[numElementsInPath-1];
 
-	v1=rand-0.5;
-	t0=rand*10;
-	t2=t0+rand*100;
-	dz=rand-0.5;
-	k=sign(dz);
-	a=8;
-	t1=t2-sqrt((t2-t0)^2+(2*v1*(t2-t0)-2*dz)/a/k);
-	vc=v1+a*k*(t1-t0);
-	Dz=v1*(t1-t0)+a*k/2*(t1-t0)^2+vc*(t2-t1);
-	error=Dz-dz
+//  Z data sets
+	double v1=0; // velocity in the beginning of acceleration, initially this is zero
+	for(int ZPathElement=0;ZPathElement<(numElementsInPath-1);ZPathElement++){
 
-// times of the z profile
-	for(int ZProfileElement=0;ZProfileElement<numElementsInProfileZ;ZProfileElement++){
+		double t0;	// absolute time in the beginning of acceleration
+		if (ZPathElement==0)
+			t0=0.0; // zero in the beginning of the whole profile
+		else
+			t0=TimePerStep/2.0+(PathPointsX[ZPathElement]-PathPointsX[0])/ConstantXVelocity; // calculated from the X path positions and x velocity
+
+		double t2;
+		if (ZPathElement==(numElementsInPath-2))
+			t2=TotalTravelTimeX; // absolute time after the constant velocity motion
+		else
+			t2=TimePerStep/2.0+(PathPointsX[ZPathElement+1]-PathPointsX[0])/ConstantXVelocity; // absolute time after the constant velocity motion
+
+		double dz=PathPointsZ[ZPathElement+1]-PathPointsZ[ZPathElement]; // change of the z path coordinate
+
+		double k; // sign of the acceleration
+		if (dz>(v1*(t2-t0)))
+			k=1;
+		else
+			k=-1;
+
+		double a=MaxAcceleration; // used acceleration
+
+		double t1=t2-sqrt((t2-t0)*(t2-t0)+(2*v1*(t2-t0)-2*dz)/a/k); // absolute intermediate time between the acceleration and the constant velocity
+		double vc=v1+a*k*(t1-t0); // the constant velocity 
+
+// z acceleration
+		ProfileIntervalTimesZ[ZPathElement*2]=t1-t0;
+		ZACCtoP[ZPathElement*2]=MaxAcceleration*k;
+		ZVELtoP[ZPathElement*2]=v1;
+		ZPOStoP[ZPathElement*2]=PathPointsZ[ZPathElement];
+// z constant velocity
+		ProfileIntervalTimesZ[ZPathElement*2+1]=t2-t1;
+		ZACCtoP[ZPathElement*2+1]=0;
+		ZVELtoP[ZPathElement*2+1]=vc;
+		ZPOStoP[ZPathElement*2+1]=PathPointsZ[ZPathElement]+v1*(t1-t0)+a*k/2*(t1-t0)*(t1-t0);
 		
-	}
-	ProfileIntervalTimesZ[0]=TimePerStep; // one step
-	ProfileIntervalTimesZ[1]=TotalTravelTime-TimePerStep*2.0;
-	ProfileIntervalTimesZ[2]=TimePerStep; // one step
-	ProfileIntervalTimesZ[3]=0.0; // 0 to stop the motion
-
-// accelerations of the z profile
-	ZACCtoP[0]=MaxAcceleration;
-	ZACCtoP[1]=0;	// constant velocity
-	ZACCtoP[2]=-MaxAcceleration;
-	ZACCtoP[3]=0; // 0 to stop the motion
-
-// velocities of the z profile
-	ZVELtoP[0]=0;
-	ZVELtoP[1]=ConstantXVelocity;
-	ZVELtoP[2]=ConstantXVelocity;
-	ZVELtoP[3]=0;
-
-// positions of the z profile
-	ZPOStoP[0]=PathPointsX[0];
-	ZPOStoP[1]=PathPointsX[0]+0.5*MaxAcceleration*TimePerStep*TimePerStep;
-	ZPOStoP[2]=PathPointsX[numElementsInPath-1]-0.5*MaxAcceleration*TimePerStep*TimePerStep;
-	ZPOStoP[3]=PathPointsX[numElementsInPath-1];
-	
+		v1=vc;
+	}	
+// z final deacceleration
+		double AccelerationSign;
+		if (v1>0)
+			AccelerationSign=-1;
+		else
+			AccelerationSign=1;
+		
+		ProfileIntervalTimesZ[numElementsInProfileZ-2]=-v1/(MaxAcceleration*AccelerationSign);
+		ZACCtoP[numElementsInProfileZ-2]=MaxAcceleration*AccelerationSign;
+		ZVELtoP[numElementsInProfileZ-2]=v1;
+		ZPOStoP[numElementsInProfileZ-2]=PathPointsZ[numElementsInPath-1];
+// z halt
+		ProfileIntervalTimesZ[numElementsInProfileZ-1]=0; // 0 to stop the motion
+		ZACCtoP[numElementsInProfileZ-1]=0;
+		ZVELtoP[numElementsInProfileZ-1]=0;
+		ZPOStoP[numElementsInProfileZ-1]=PathPointsZ[numElementsInPath-1]+ProfileIntervalTimesZ[numElementsInProfileZ-2]*ZVELtoP[numElementsInProfileZ-2]+ProfileIntervalTimesZ[numElementsInProfileZ-2]*ProfileIntervalTimesZ[numElementsInProfileZ-2]/2*ZACCtoP[numElementsInProfileZ-2];
 }
 
 void Stage::AllocateProfileArrays()
@@ -118,6 +138,86 @@ void Stage::AllocateProfileArrays()
 	ZPOStoP = gcnew array< double >(numElementsInProfileZ);
 	ZVELtoP = gcnew array< double >(numElementsInProfileZ);
 	ZACCtoP = gcnew array< double >(numElementsInProfileZ);
+}
+
+void Stage::PathSimulator(double TimeResolution){
+
+	String^ fileName = "D:\\simulator_log_file.txt";
+	StreamWriter^ simulator_log_file = gcnew StreamWriter(fileName);
+
+	simulator_log_file->WriteLine("Scanner frame rate = {0}",ScannerFrameRate);
+	simulator_log_file->WriteLine("Step size = {0}\n",StepSize);
+	simulator_log_file->WriteLine("Path points X,Z");
+
+	for (int PathElementIndex=0;PathElementIndex<numElementsInPath;PathElementIndex++)
+		simulator_log_file->WriteLine("{0}\t{1}",PathPointsX[PathElementIndex],PathPointsZ[PathElementIndex]);
+
+	simulator_log_file->WriteLine("X profile parameters");
+	simulator_log_file->WriteLine("t\t\t\tcum t\t\ts\t\t\tv\t\t\ta");
+	double CumulativeTime=0;
+	for (int ProfileElementIndex=0;ProfileElementIndex<numElementsInProfileX;ProfileElementIndex++){
+		CumulativeTime+=ProfileIntervalTimesX[ProfileElementIndex];
+		simulator_log_file->WriteLine("{0:0.000000}\t{1:0.000000}\t{2:0.000000}\t{3:0.000000}\t{4:0.000000}",ProfileIntervalTimesX[ProfileElementIndex],CumulativeTime,XPOStoP[ProfileElementIndex],XVELtoP[ProfileElementIndex],XACCtoP[ProfileElementIndex]);
+	}
+
+	simulator_log_file->WriteLine("Z profile parameters");
+	simulator_log_file->WriteLine("t\t\t\tcum t\t\ts\t\t\tv\t\t\ta");
+	CumulativeTime=0;
+	for (int ProfileElementIndex=0;ProfileElementIndex<numElementsInProfileZ;ProfileElementIndex++){
+		CumulativeTime+=ProfileIntervalTimesZ[ProfileElementIndex];
+		simulator_log_file->WriteLine("{0:0.000000}\t{1:0.000000}\t{2:0.000000}\t{3:0.000000}\t{4:0.000000}",ProfileIntervalTimesZ[ProfileElementIndex],CumulativeTime,ZPOStoP[ProfileElementIndex],ZVELtoP[ProfileElementIndex],ZACCtoP[ProfileElementIndex]);
+	}
+
+	double MaxTimeX=0;
+	double MaxTimeZ=0;
+	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileX;DataSetIndex++)
+		MaxTimeX+=ProfileIntervalTimesX[DataSetIndex];
+	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileZ;DataSetIndex++)
+		MaxTimeZ+=ProfileIntervalTimesZ[DataSetIndex];
+
+	int CurrentDataSetX=0;
+	int CurrentDataSetZ=0;
+	double CurrentCumulativeTimeX=ProfileIntervalTimesX[0];
+	double CurrentCumulativeTimeZ=ProfileIntervalTimesZ[0];
+	bool UseMaxTimeX=false;
+
+	simulator_log_file->WriteLine("t\t\tx\t\tz\t\tvx\t\tvz\t\tax\t\taz");
+	for(double time=0.0;time<=MaxTimeZ;time+=TimeResolution){
+		
+		while((time>CurrentCumulativeTimeX) & (UseMaxTimeX==false)){
+			CurrentDataSetX++;
+			if(CurrentDataSetX==numElementsInProfileX)
+			{
+				CurrentDataSetX--;
+				UseMaxTimeX=true;
+			}
+			else
+				CurrentCumulativeTimeX+=ProfileIntervalTimesX[CurrentDataSetX];
+		}
+		while((time>CurrentCumulativeTimeZ) & (CurrentDataSetZ<(numElementsInProfileZ-1))){
+			CurrentDataSetZ++;
+			CurrentCumulativeTimeZ+=ProfileIntervalTimesZ[CurrentDataSetZ];
+		}
+
+		double TimeX=time;
+		if(UseMaxTimeX)
+			TimeX=MaxTimeX;
+		double TimeZ=time;
+
+		double TimeDeltaX=TimeX-(CurrentCumulativeTimeX-ProfileIntervalTimesX[CurrentDataSetX]);
+		double TimeDeltaZ=TimeZ-(CurrentCumulativeTimeZ-ProfileIntervalTimesZ[CurrentDataSetZ]);
+
+		double VelocityX=XVELtoP[CurrentDataSetX]+XACCtoP[CurrentDataSetX]*TimeDeltaX;
+		double VelocityZ=ZVELtoP[CurrentDataSetZ]+ZACCtoP[CurrentDataSetZ]*TimeDeltaZ;
+
+		double PositionX=XPOStoP[CurrentDataSetX]+XVELtoP[CurrentDataSetX]*TimeDeltaX+XACCtoP[CurrentDataSetX]*TimeDeltaX*TimeDeltaX/2.0;
+		double PositionZ=ZPOStoP[CurrentDataSetZ]+ZVELtoP[CurrentDataSetZ]*TimeDeltaZ+ZACCtoP[CurrentDataSetZ]*TimeDeltaZ*TimeDeltaZ/2.0;
+
+		simulator_log_file->WriteLine("{0:0.0000}\t{1:0.0000}\t{2:0.0000}\t{3:0.0000}\t{4:0.0000}\t{5:0.0000}\t{6:0.0000}",time,PositionX,PositionZ,VelocityX,VelocityZ,XACCtoP[CurrentDataSetX],ZACCtoP[CurrentDataSetZ]); 
+
+	}
+
+	simulator_log_file->Close();	
 }
 
 int Stage::PerformProfilerTest(){
@@ -140,17 +240,18 @@ int Stage::PerformProfilerTest(){
 	PathPointsX[4]=4.0;
 
 	PathPointsZ[0]=0.0;	
-	PathPointsZ[1]=0.1;
+	PathPointsZ[1]=0.15;
 	PathPointsZ[2]=0.2;
-	PathPointsZ[3]=0.1;
+	PathPointsZ[3]=0.05;
 	PathPointsZ[4]=0.0;
 
 	ScannerFrameRate=50; // [steps per second]
-	StepSize=1.84; // [mm per step]
+	StepSize=0.00184; // [mm per step]
 
 	EvaluateProfile();
-	int errorCount=0;
+	PathSimulator(1/ScannerFrameRate);
 
+	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
 	while((iteration_index++)<100){
@@ -159,22 +260,23 @@ int Stage::PerformProfilerTest(){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
 // move to initial position
-		MoveStageBlocking(AxisX, XPOStoP[0]);		
+		MoveStageBlocking(AxisX, PathPointsX[0]);		
+		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
 // clear, generate and run the profile
 		ClearOldProfile();
-		GenerateProfile(AxisX);
+		GenerateProfile();
 		profiler_log_file->WriteLine("");
-		ReadProfileConfiguration(AxisX);
+		ReadProfileConfiguration();
 		profiler_log_file->WriteLine("");
 
-		RunProfile(AxisX);
+		RunProfile();
 // wait user profile mode to terminate
 		bool UserProfileActive=true;
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
-		if ((Stage::GetPosition(AxisX)-36050/7200)<(-0.1)){
+		if ((Stage::GetPosition(AxisX)-PathPointsX[numElementsInPath-1])<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
 		}
@@ -193,38 +295,60 @@ int Stage::PerformProfilerTest(){
 	return 0;
 }
 // ask profile parameters
-void Stage::ReadProfileConfiguration(const char *Axis){
+void Stage::ReadProfileConfiguration(){
+// query the cluster configuration
+	char AxisInCluster[2];
+	long NumberOfDataSets[2];
+	long LengthOfDataSets[2];
+
+	HandleError(C843_qUPC(ID, "AB",AxisInCluster,NumberOfDataSets, LengthOfDataSets),"C843_qUPC ");
+	profiler_log_file->WriteLine("qUPC: cluster A=({0}, {1}, {2})",AxisInCluster[0],NumberOfDataSets[0],LengthOfDataSets[0]);
+	profiler_log_file->WriteLine("qUPC: cluster B=({0}, {1}, {2})",AxisInCluster[1],NumberOfDataSets[1],LengthOfDataSets[1]);
+
+// query the block configuration
+	long BlockIndex[1];
+	BlockIndex[0]=0;
 	long iPararray[1];
-	long iCmdarray[1];
-	char AxisTemp[]="2";
-
-	HandleError(C843_qUPC(ID, "A",AxisTemp,iCmdarray, iPararray),"C843_qUPC ");
-	profiler_log_file->WriteLine("qUPC: cluster A=({0}, {1})",iCmdarray[0],iPararray[0]);
-
 	long dValarray0[1];
-	iCmdarray[0]=0;
+// Z axis
 	for (int i=1;i<4;i++){
 		iPararray[0]=i;
-		HandleError(C843_qUPB(ID, "A",iCmdarray, iPararray,dValarray0),"C843_qUPB ");
-		profiler_log_file->WriteLine("qUPB: cluster A, block 0, value{0}={1}",iPararray[0],dValarray0[0]);
+		HandleError(C843_qUPB(ID, "A",BlockIndex,iPararray,dValarray0),"C843_qUPB ");
+		profiler_log_file->WriteLine("qUPB: cluster A (Z), block {0}, value{1}={2}",BlockIndex[0],iPararray[0],dValarray0[0]);
+	}
+// X axis
+	for (int i=1;i<4;i++){
+		iPararray[0]=i;
+		HandleError(C843_qUPB(ID, "B",BlockIndex,iPararray,dValarray0),"C843_qUPB ");
+		profiler_log_file->WriteLine("qUPB: cluster B (X), block {0}, value{1}={2}",BlockIndex[0],iPararray[0],dValarray0[0]);
 	}
 
+/*
+	long iPararray[1];
+	long iCmdarray[1];
 	for (int i=0;i<2;i++){
 		iCmdarray[0]=i;
 		HandleError(C843_qUPA(ID, "A",iCmdarray, iPararray),"C843_qUPA ");
 		profiler_log_file->WriteLine("qUPA: cluster A, {0}={1}",iCmdarray[0],iPararray[0]);
 	}
+*/
 
-
-
+// query the data set configuration
+	long iCmdarray[1];
 	iCmdarray[0]=0;
 	iPararray[0]=0;	
 	double dValarray[4];
-
-	for (int i=1;i<5;i++){
+// Z axis
+	for (int i=1;i<(NumberOfDataSets[0]+1);i++){
 		HandleError(C843_qUPD(ID, "A",iCmdarray, iPararray,dValarray),"C843_qUPD ");
 		iPararray[0]=i;	
 		profiler_log_file->WriteLine("qUPD cA b{0} d{1} = {2},{3},{4},{5}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2],dValarray[3]);
+	}
+// X axis
+	for (int i=1;i<(NumberOfDataSets[1]+1);i++){
+		HandleError(C843_qUPD(ID, "B",iCmdarray, iPararray,dValarray),"C843_qUPD ");
+		iPararray[0]=i;	
+		profiler_log_file->WriteLine("qUPD cB b{0} d{1} = {2},{3},{4},{5}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2],dValarray[3]);
 	}
 	 
 	
@@ -379,90 +503,69 @@ void Stage::WaitUserProfileModeToFinish(const char *Axis)
 	}
 }
 
-void Stage::GenerateProfile(const char *Axis)
+void Stage::GenerateProfile()
 {
-	long DatasetPerblock[1] = {4};		//UPC
-	long Datasetlength[1] ={4};	//UPC length of parameter set
-	const char* Cluster = "A";	//UPC, UPB
-	
-	long DatasetToClear[] = {-1}; // use to clear blocks from a cluster
-
-	long BlocksToconsiderIndex[1] = {0};	//UPB, UPD block index to be used
-	long ParameterID[1] = {1};	//UPB used to for UPB
-	
 // create cluster A
-	HandleError(C843_UPC(ID, Axis, Cluster, DatasetPerblock, Datasetlength),"create profile C843_UPC");
-// clear blocks from the cluster A	
-	HandleError(C843_UPB(ID, Cluster, DatasetToClear, DatasetToClear, DatasetToClear),"create profile C843_UPB clear");
-// create blocks into the cluster A
-	HandleError(C843_UPB(ID, Cluster, BlocksToconsiderIndex, ParameterID, DatasetPerblock),"create profile C843_UPB create");
-	
-	long DataSetsPerBlocksIndex[1];	//UPD
-	double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
-/*
-	DataSetsPerBlocksIndex[0]=0;
-	ValuesToInput[0]=1;
-	ValuesToInput[1]=0;
-	ValuesToInput[2]=0;
-	ValuesToInput[3]=1;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=1;
-	ValuesToInput[0]=4;
-	ValuesToInput[1]=0.5;
-	ValuesToInput[2]=1;
-	ValuesToInput[3]=0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=2;
-	ValuesToInput[0]=1;
-	ValuesToInput[1]=4.5;
-	ValuesToInput[2]=1;
-	ValuesToInput[3]=-1;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=3;
-	ValuesToInput[0]=0;
-	ValuesToInput[1]=5;
-	ValuesToInput[2]=0;
-	ValuesToInput[3]=0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	*/
-	DataSetsPerBlocksIndex[0]=0;
-	ValuesToInput[0]=5.0/60.0;
-	ValuesToInput[1]=0.0;
-	ValuesToInput[2]=0.0;
-	ValuesToInput[3]=1.0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=1;
-	ValuesToInput[0]=60.0;
-	ValuesToInput[1]=25.0/7200.0;
-	ValuesToInput[2]=5.0/60.0;
-	ValuesToInput[3]=0.0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=2;
-	ValuesToInput[0]=5.0/60.0;
-	ValuesToInput[1]=36025.0/7200.0;
-	ValuesToInput[2]=5.0/60.0;
-	ValuesToInput[3]=-1.0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	DataSetsPerBlocksIndex[0]=3;
-	ValuesToInput[0]=0.0;
-	ValuesToInput[1]=36050.0/7200.0;
-	ValuesToInput[2]=0.0;
-	ValuesToInput[3]=0.0;
-	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	char *AxisZX = "12";
+	const char* ClusterAB = "AB";
+	long DatasetPerblock[2];
+	DatasetPerblock[0]=numElementsInProfileZ;
+	DatasetPerblock[1]=numElementsInProfileX;
+	long Datasetlength[2] ={4, 4}; //time, position, velocity, acceleration
+	HandleError(C843_UPC(ID, AxisZX, ClusterAB, DatasetPerblock, Datasetlength),"create profile C843_UPC");
 
+// clear blocks from the clusters A (Z)	and B (X)
+	long DatasetToClear[2] = {-1 -1}; // use to clear blocks from a cluster
+	HandleError(C843_UPB(ID, ClusterAB, DatasetToClear, DatasetToClear, DatasetToClear),"create profile C843_UPB clear");
 
+// create blocks into the clusters A (Z) and B (X)
+	long BlocksToconsiderIndex[2] = {0, 0};	// block index to be used
+	long ParameterID[2] = {1, 1};	//UPB used to for UPB
+	HandleError(C843_UPB(ID, ClusterAB, BlocksToconsiderIndex, ParameterID, DatasetPerblock),"create profile C843_UPB create");
 
-//	WaitStageToStopMoving(Axis);		
+// create X axis data sets (cluster B)
+	char *AxisX = "2";
+	const char* ClusterB = "B";
+
+	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileX;DataSetIndex++){
+		long DataSetsOffset[1];	//UPD
+		DataSetsOffset[0]=DataSetIndex;
+
+		double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
+		ValuesToInput[0]=ProfileIntervalTimesX[DataSetIndex];
+		ValuesToInput[1]=XPOStoP[DataSetIndex];
+		ValuesToInput[2]=XVELtoP[DataSetIndex];
+		ValuesToInput[3]=XACCtoP[DataSetIndex];
+		HandleError(C843_UPD(ID, ClusterB, &BlocksToconsiderIndex[1], DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	}
+
+// create Z axis data sets (cluster A)
+	char *AxisZ = "1";
+	const char* ClusterA = "A";
+
+	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileZ;DataSetIndex++){
+		long DataSetsOffset[1];	//UPD
+		DataSetsOffset[0]=DataSetIndex;
+
+		double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
+		ValuesToInput[0]=ProfileIntervalTimesZ[DataSetIndex];
+		ValuesToInput[1]=ZPOStoP[DataSetIndex];
+		ValuesToInput[2]=ZVELtoP[DataSetIndex];
+		ValuesToInput[3]=ZACCtoP[DataSetIndex];
+		HandleError(C843_UPD(ID, ClusterA, &BlocksToconsiderIndex[0], DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+	}
 }
 
-void Stage::RunProfile(const char *Axis){
+void Stage::RunProfile(){
 	
-	const char* Cluster = "A";	//UPC, UPB	
-	long BlocksToconsiderIndex[1] = {0};	//UPB, UPD block index to be used		
-	long DataSetsPerBlocksIndex[1] = {0};	
+	const char* Cluster = "AB";	// Z and X axes
+	long BlocksToconsiderIndex[2] = {0,0};	//UPB, UPD block index to be used		
+	long DataSetsPerBlocksIndex[2] = {0,0};	
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
-	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
+	Sleep(100);
+	char *AxisZX = "12";
+	HandleError(C843_UPR(ID, AxisZX, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
 }
 // clear profile
 void Stage::ClearOldProfile()

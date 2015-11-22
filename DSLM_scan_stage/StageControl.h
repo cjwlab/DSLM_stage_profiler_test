@@ -29,9 +29,9 @@ public:
 	static void WaitUserProfileModeToFinish(const char *Axis);		   
 
 //	static void Stage::GenerateAndRunProfile(const char *Axis);
-	static void Stage::GenerateProfile(const char *Axis);
-	static void Stage::RunProfile(const char *Axis);
-	static void Stage::ReadProfileConfiguration(const char *Axis);
+	static void Stage::GenerateProfile();
+	static void Stage::RunProfile();
+	static void Stage::ReadProfileConfiguration();
 
 	static void Stage::ClearOldProfile();
 
@@ -47,6 +47,7 @@ public:
 
 	static void Stage::EvaluateProfile();
 	static void Stage::AllocateProfileArrays();
+	static void Stage::PathSimulator(double TimeResolution);
 
 
 private:
@@ -65,6 +66,7 @@ private:
 	static int numElementsInProfileZ;
 	static array< double>^ ProfileIntervalTimesZ;
 	static array< double>^ ZPOStoP;
+	static array< double>^ ZVELtoP;
 	static array< double>^ ZACCtoP;
 
 	static double ScannerFrameRate; // [steps per second]
