@@ -260,8 +260,12 @@ int Stage::PerformProfilerTest(){
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
 // move to initial position
+		profiler_log_file->WriteLine("Move Stage Blocking X...");
 		MoveStageBlocking(AxisX, PathPointsX[0]);		
+		profiler_log_file->WriteLine("Move Stage Blocking X...done.");
+		profiler_log_file->WriteLine("Move Stage Blocking Z...");
 		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
+		profiler_log_file->WriteLine("Move Stage Blocking Z...done.");
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
 // clear, generate and run the profile
 		ClearOldProfile();
@@ -445,11 +449,25 @@ void Stage::MoveStageBlocking(const char *Axis, double Position)
 
 // wait stage to stop moving
 void Stage::WaitStageToStopMoving(const char *Axis)
-{	
+{				
 	bool bIsMoving = true;
+	double PreviousPosition=100;
 	while(bIsMoving == true) {
 		Sleep(100);
 		bIsMoving=IsMoving(Axis);		
+		double Position=GetPosition(Axis);
+		bool OnTarget=IsOnTarget(Axis);
+		double Velocity;
+		HandleError(C843_qVEL(ID, Axis, &Velocity),"C843_qVEL");
+		double Acceleration;
+		HandleError(C843_qACC(ID, Axis, &Acceleration),"C843_qACC");
+		if (bIsMoving & (PreviousPosition==Position)){			
+			Sleep(100);
+			bIsMoving=IsMoving(Axis);		
+			profiler_log_file->WriteLine("ERROR: WaitStageToStopMoving: IsMoving={0}, OnTarget={1}, Velocity={2}, Acceleration={3}",bIsMoving,OnTarget,Velocity,Acceleration);
+			bIsMoving=false;
+		}
+		PreviousPosition=Position;
 	}	
 }
 
