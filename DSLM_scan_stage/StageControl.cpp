@@ -15,6 +15,7 @@ Stage::Stage()
 // initialise and open log file
 	String^ fileName = "D:\\profiler_log_file.txt";
 	profiler_log_file = gcnew StreamWriter(fileName);
+	profiler_log_file->AutoFlush = true;
 	MaxAcceleration=8; // [mm per s^2]
 }
 
@@ -25,7 +26,7 @@ Stage::~Stage()
 
 int main(){
 	Stage stage;	
-//	stage.Initialize();
+	stage.Initialize();
 	
 	stage.PerformProfilerTest();
 }
@@ -254,9 +255,8 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<100){
-		std::clock_t    start;
-		start = std::clock();
+	while((iteration_index++)<700){
+
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
 // move to initial position
@@ -270,12 +270,31 @@ int Stage::PerformProfilerTest(){
 		ReadProfileConfiguration();
 		profiler_log_file->WriteLine("");
 
+		std::clock_t start;
+		start = std::clock();
 		RunProfile();
 // wait user profile mode to terminate
-		bool UserProfileActive=true;
+/*		bool UserProfileActive=true;
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
+		*/
+
+		std::clock_t TimerEnd;
+		bool UserProfileActiveX=true;
+		bool UserProfileActiveZ=true;
+		profiler_log_file->WriteLine("Stage position (t,X,Z)");
+		while((UserProfileActiveX==true) | (UserProfileActiveZ==true)){			
+			UserProfileActiveX=IsUserProfileActive(AxisX);
+			UserProfileActiveZ=IsUserProfileActive(AxisZ);
+			
+			TimerEnd = std::clock();
+			double SecRange = (TimerEnd - start)/(double)(CLOCKS_PER_SEC);
+			
+			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			Sleep(20);
+		}
+
 		if ((Stage::GetPosition(AxisX)-PathPointsX[numElementsInPath-1])<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
@@ -339,15 +358,15 @@ void Stage::ReadProfileConfiguration(){
 	iPararray[0]=0;	
 	double dValarray[4];
 // Z axis
-	for (int i=1;i<(NumberOfDataSets[0]+1);i++){
-		HandleError(C843_qUPD(ID, "A",iCmdarray, iPararray,dValarray),"C843_qUPD ");
+	for (long i=0;i<(NumberOfDataSets[0]);i++){
 		iPararray[0]=i;	
+		HandleError(C843_qUPD(ID, "A",iCmdarray, iPararray,dValarray),"C843_qUPD ");
 		profiler_log_file->WriteLine("qUPD cA b{0} d{1} = {2},{3},{4},{5}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2],dValarray[3]);
 	}
 // X axis
-	for (int i=1;i<(NumberOfDataSets[1]+1);i++){
-		HandleError(C843_qUPD(ID, "B",iCmdarray, iPararray,dValarray),"C843_qUPD ");
+	for (long i=0;i<(NumberOfDataSets[1]);i++){
 		iPararray[0]=i;	
+		HandleError(C843_qUPD(ID, "B",iCmdarray, iPararray,dValarray),"C843_qUPD ");
 		profiler_log_file->WriteLine("qUPD cB b{0} d{1} = {2},{3},{4},{5}",iCmdarray[0],iPararray[0],dValarray[0],dValarray[1],dValarray[2],dValarray[3]);
 	}
 	 
@@ -373,34 +392,25 @@ void Stage::Initialize()
 	HandleError(C843_qSAI(ID, axes, 9),"initialisation C843_qSAI");
 	System::String^ axesID = gcnew System::String(axes);	
 	HandleError(C843_INI(ID,axes),"initialisation C843_INI");
-
-	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
-	HandleError(C843_FPL(ID,"2"),"initialisation C843_FPL");
-	HandleError(C843_FNL(ID,"3"),"initialisation C843_FNL");
+	
 	bool bFlag = FALSE;
+	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
+	bFlag = FALSE;
+	while(bFlag != TRUE){
+		HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
+	}
+	HandleError(C843_FPL(ID,"2"),"initialisation C843_FPL");
+	bFlag = FALSE;
+	while(bFlag != TRUE){
+		HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
+	}
+	HandleError(C843_FNL(ID,"3"),"initialisation C843_FPL");
+	bFlag = FALSE;
 	while(bFlag != TRUE){
 		 HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
 	}
 
 /*
-	bool bFlag = FALSE;
-	HandleError(C843_FPL(ID,"1"),"initialisation C843_FPL");
-	bFlag = FALSE;
-	while(bFlag != TRUE){
-		HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
-	}
-	HandleError(C843_FPL(ID,"2"),"initialisation C843_FPL");
-	bFlag = FALSE;
-	while(bFlag != TRUE){
-		HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
-	}
-	HandleError(C843_FNL(ID,"3"),"initialisation C843_FNL");
-	bFlag = FALSE;
-	while(bFlag != TRUE){
-		 HandleError(C843_IsControllerReady(ID, (long*)&bFlag),"initialisation C843_IsControllerReady");
-	}
-
-
 	HandleError(C843_MOV(ID, "1", &movr),"initialisation C843_MOV");
 	HandleError(C843_MOV(ID, "2", &movr),"initialisation C843_MOV");
 	HandleError(C843_MOV(ID, "3", &movr),"initialisation C843_MOV");
@@ -527,7 +537,7 @@ void Stage::GenerateProfile()
 	char *AxisX = "2";
 	const char* ClusterB = "B";
 
-	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileX;DataSetIndex++){
+	for(long DataSetIndex=0;DataSetIndex<numElementsInProfileX;DataSetIndex++){
 		long DataSetsOffset[1];	//UPD
 		DataSetsOffset[0]=DataSetIndex;
 
@@ -536,14 +546,14 @@ void Stage::GenerateProfile()
 		ValuesToInput[1]=XPOStoP[DataSetIndex];
 		ValuesToInput[2]=XVELtoP[DataSetIndex];
 		ValuesToInput[3]=XACCtoP[DataSetIndex];
-		HandleError(C843_UPD(ID, ClusterB, &BlocksToconsiderIndex[1], DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+		HandleError(C843_UPD(ID, ClusterB, &(BlocksToconsiderIndex[1]), DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
 	}
 
 // create Z axis data sets (cluster A)
 	char *AxisZ = "1";
 	const char* ClusterA = "A";
 
-	for(int DataSetIndex=0;DataSetIndex<numElementsInProfileZ;DataSetIndex++){
+	for(long DataSetIndex=0;DataSetIndex<numElementsInProfileZ;DataSetIndex++){
 		long DataSetsOffset[1];	//UPD
 		DataSetsOffset[0]=DataSetIndex;
 
@@ -552,7 +562,7 @@ void Stage::GenerateProfile()
 		ValuesToInput[1]=ZPOStoP[DataSetIndex];
 		ValuesToInput[2]=ZVELtoP[DataSetIndex];
 		ValuesToInput[3]=ZACCtoP[DataSetIndex];
-		HandleError(C843_UPD(ID, ClusterA, &BlocksToconsiderIndex[0], DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
+		HandleError(C843_UPD(ID, ClusterA, &(BlocksToconsiderIndex[0]), DataSetsOffset, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
 	}
 }
 
@@ -609,7 +619,7 @@ void Stage::HandleError(BOOL error,String^ message)
 	String^ errorString;
 	if (error==FALSE){
 		errorString=ReadError();
-		profiler_log_file->WriteLine(message+": "+errorString);		
+		profiler_log_file->WriteLine("ERROR: "+message+": "+errorString);		
 	}	
 }
 
