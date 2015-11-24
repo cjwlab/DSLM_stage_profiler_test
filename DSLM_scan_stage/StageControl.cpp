@@ -286,12 +286,14 @@ int Stage::PerformProfilerTest(){
 
 // move to initial position
 		profiler_log_file->WriteLine("Move Stage Blocking X...");
+		Sleep(1000);
 		MoveStageBlocking(AxisX, PathPointsX[0]);		
 		profiler_log_file->WriteLine("Move Stage Blocking X...done.");
 		profiler_log_file->WriteLine("Move Stage Blocking Z...");
 		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
 		profiler_log_file->WriteLine("Move Stage Blocking Z...done.");
 		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
+		Sleep(1000);
 // clear, generate and run the profile
 		ClearOldProfile();
 		GenerateProfile();
@@ -626,7 +628,7 @@ void Stage::RunProfile(){
 	long DataSetsPerBlocksIndex[2] = {0,0};	
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
-	Sleep(100);
+	Sleep(1000);
 	char *AxisZX = "12";
 	HandleError(C843_UPR(ID, AxisZX, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
 }
