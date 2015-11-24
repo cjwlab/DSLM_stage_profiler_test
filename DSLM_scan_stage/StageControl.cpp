@@ -223,13 +223,44 @@ void Stage::PathSimulator(double TimeResolution){
 
 int Stage::PerformProfilerTest(){
 
+	long TriggerLines[3];
+	TriggerLines[0]=1;
+	TriggerLines[1]=1;
+	TriggerLines[2]=1;
+	long TriggerParameterIDs[3];
+	TriggerParameterIDs[0]=2;
+	TriggerParameterIDs[1]=3;
+	TriggerParameterIDs[2]=7;
+
+	char out[20];
+
+	HandleError(C843_qCTO(ID,TriggerLines,TriggerParameterIDs,out,3,20),"C843_qCTO");
+
+	HandleError(C843_CTO(ID,&(TriggerLines[0]),&(TriggerParameterIDs[0]),"2",1),"C843_CTO2");
+	HandleError(C843_CTO(ID,&(TriggerLines[1]),&(TriggerParameterIDs[1]),"6",1),"C843_CTO6");
+	HandleError(C843_CTO(ID,&(TriggerLines[2]),&(TriggerParameterIDs[2]),"1",1),"C843_CTO1");
+
+	HandleError(C843_qCTO(ID,TriggerLines,TriggerParameterIDs,out,3,20),"C843_qCTO");
+
+	BOOL TriggerOn[1];
+	TriggerOn[0]=FALSE;
+	HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
+
+	char *AxisX = "2";
+/*	while(1){
+		Sleep(200);
+		MoveStageBlocking(AxisX, 6.0);
+		Sleep(200);
+		MoveStageBlocking(AxisX, 6.5);
+	}
+	*/
+
 // number of points in the desired profile
-		
 	numElementsInPath=5;
 	AllocateProfileArrays();
 
 	char *AxisZ = "1";
-	char *AxisX = "2";
+
 	char *AxisY = "3";
 	char *AxisZX = "12";
 
@@ -276,7 +307,15 @@ int Stage::PerformProfilerTest(){
 
 		std::clock_t start;
 		start = std::clock();
+		TriggerOn[0]=TRUE;
+		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
+		Sleep(100);
 		RunProfile();
+		Sleep(1000);
+		TriggerOn[0]=FALSE;
+		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
+		
+
 // wait user profile mode to terminate
 /*		bool UserProfileActive=true;
 		while(UserProfileActive==true){			
