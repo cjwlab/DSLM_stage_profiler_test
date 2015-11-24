@@ -310,12 +310,19 @@ int Stage::PerformProfilerTest(){
 		TriggerOn[0]=TRUE;
 		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
 		Sleep(100);
-		RunProfile();
-		Sleep(1000);
+
+//		RunProfile();
+		
+		HandleError(C843_VEL(ID, AxisX, &(XVELtoP[1])),"C843_VELX");
+		MoveStage(AxisX, PathPointsX[4]);
+
+		double PathIndexZ=1;
+		HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
+		MoveStage(AxisZ, PathPointsX[PathIndexZ]);
+
 		TriggerOn[0]=FALSE;
 		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
 		
-
 // wait user profile mode to terminate
 /*		bool UserProfileActive=true;
 		while(UserProfileActive==true){			
@@ -324,18 +331,26 @@ int Stage::PerformProfilerTest(){
 		*/
 
 		std::clock_t TimerEnd;
-		bool UserProfileActiveX=true;
-		bool UserProfileActiveZ=true;
+		bool IsMovingX=true;
+		bool IsMovingZ=true;
 		profiler_log_file->WriteLine("Stage position (t,X,Z)");
-		while((UserProfileActiveX==true) | (UserProfileActiveZ==true)){			
-			UserProfileActiveX=IsUserProfileActive(AxisX);
-			UserProfileActiveZ=IsUserProfileActive(AxisZ);
+		while((IsMovingX==true) | (IsMovingZ==true)){			
+			
+			IsMovingX=IsMoving(AxisX);
+			IsMovingZ=IsMoving(AxisZ);
 			
 			TimerEnd = std::clock();
 			double SecRange = (TimerEnd - start)/(double)(CLOCKS_PER_SEC);
 			
 			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
 			Sleep(20);
+
+			if(IsMovingZ==false){				
+				PathIndexZ++;
+				if (PathIndexZ<(numElementsInPath-1))
+					HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
+					MoveStage(AxisZ, PathPointsX[PathIndexZ]);
+			}
 		}
 
 		if ((Stage::GetPosition(AxisX)-PathPointsX[numElementsInPath-1])<(-0.1)){
