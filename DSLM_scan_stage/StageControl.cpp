@@ -286,54 +286,26 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<700){
+	while((iteration_index++)<1000){
 
-		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
+//		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
-// move to initial position
-		profiler_log_file->WriteLine("Move Stage Blocking X...");
-		MoveStageBlocking(AxisX, PathPointsX[0]);		
-		profiler_log_file->WriteLine("Move Stage Blocking X...done.");
-		profiler_log_file->WriteLine("Move Stage Blocking Z...");
-		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
-		profiler_log_file->WriteLine("Move Stage Blocking Z...done.");
-		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
-// clear, generate and run the profile
-		ClearOldProfile();
-		GenerateProfile();
-		profiler_log_file->WriteLine("");
-		ReadProfileConfiguration();
-		profiler_log_file->WriteLine("");
-
+// move to initial position		
+		MoveStageBlocking(AxisX, 0.0);				
+		MoveStageBlocking(AxisZ, 0.0);				
+//		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
+		double StartPosX=Stage::GetPosition(AxisX);
+		double StartPosZ=Stage::GetPosition(AxisZ);
+		
+		MoveStage(AxisX, 1.0);		
+		MoveStage(AxisZ, 1.0);
 		std::clock_t start;
 		start = std::clock();
-		TriggerOn[0]=TRUE;
-		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
-		Sleep(100);
-
-//		RunProfile();
-		
-		HandleError(C843_VEL(ID, AxisX, &(XVELtoP[1])),"C843_VELX");
-		MoveStage(AxisX, PathPointsX[4]);
-
-		double PathIndexZ=1;
-		HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
-		MoveStage(AxisZ, PathPointsX[PathIndexZ]);
-
-		TriggerOn[0]=FALSE;
-		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
-		
-// wait user profile mode to terminate
-/*		bool UserProfileActive=true;
-		while(UserProfileActive==true){			
-			UserProfileActive=IsUserProfileActive(AxisX);
-		}
-		*/
 
 		std::clock_t TimerEnd;
 		bool IsMovingX=true;
 		bool IsMovingZ=true;
-		profiler_log_file->WriteLine("Stage position (t,X,Z)");
+//		profiler_log_file->WriteLine("Stage position (t,X,Z)");
 		while((IsMovingX==true) | (IsMovingZ==true)){			
 			
 			IsMovingX=IsMoving(AxisX);
@@ -342,18 +314,11 @@ int Stage::PerformProfilerTest(){
 			TimerEnd = std::clock();
 			double SecRange = (TimerEnd - start)/(double)(CLOCKS_PER_SEC);
 			
-			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-			Sleep(20);
-
-			if(IsMovingZ==false){				
-				PathIndexZ++;
-				if (PathIndexZ<(numElementsInPath-1))
-					HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
-					MoveStage(AxisZ, PathPointsX[PathIndexZ]);
-			}
+//			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			Sleep(20);		
 		}
 
-		if ((Stage::GetPosition(AxisX)-PathPointsX[numElementsInPath-1])<(-0.1)){
+		if ((Stage::GetPosition(AxisX)-1.0)<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
 		}
@@ -362,10 +327,12 @@ int Stage::PerformProfilerTest(){
 		end = std::clock();
 		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
 
-		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
-		profiler_log_file->WriteLine("Time elapsed={0}",millisec);
-		profiler_log_file->WriteLine("");
-		profiler_log_file->Flush();
+		profiler_log_file->WriteLine("{0}\t{1}\t{2}\t{3}",StartPosX,StartPosZ,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+
+//		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+//		profiler_log_file->WriteLine("Time elapsed={0}",millisec);
+//		profiler_log_file->WriteLine("");
+//		profiler_log_file->Flush();
 	}
 	profiler_log_file->WriteLine("Total error count={0}",errorCount);
 
