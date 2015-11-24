@@ -256,7 +256,7 @@ int Stage::PerformProfilerTest(){
 	*/
 
 // number of points in the desired profile
-	numElementsInPath=5;
+	numElementsInPath=2;
 	AllocateProfileArrays();
 
 	char *AxisZ = "1";
@@ -265,17 +265,11 @@ int Stage::PerformProfilerTest(){
 	char *AxisZX = "12";
 
 // path defition definition [mm]
-	PathPointsX[0]=0.0;	
-	PathPointsX[1]=1.0;
-	PathPointsX[2]=2.0;
-	PathPointsX[3]=3.0;
-	PathPointsX[4]=4.0;
+	PathPointsX[0]=0.0;
+	PathPointsX[1]=0.2;
 
-	PathPointsZ[0]=0.0;	
-	PathPointsZ[1]=0.15;
-	PathPointsZ[2]=0.2;
-	PathPointsZ[3]=0.05;
-	PathPointsZ[4]=0.0;
+	PathPointsZ[0]=0.0;
+	PathPointsZ[1]=0.05;
 
 	ScannerFrameRate=50; // [steps per second]
 	StepSize=0.00184; // [mm per step]
@@ -286,7 +280,7 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<700){
+	while((iteration_index++)<200){
 
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
@@ -307,13 +301,14 @@ int Stage::PerformProfilerTest(){
 
 		std::clock_t start;
 		start = std::clock();
+/*
 		TriggerOn[0]=TRUE;
 		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
-		Sleep(100);
+		Sleep(100);*/
 		RunProfile();
-		Sleep(1000);
+/*		Sleep(1000);
 		TriggerOn[0]=FALSE;
-		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
+		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");*/
 		
 
 // wait user profile mode to terminate
@@ -490,11 +485,12 @@ void Stage::MoveStageBlocking(const char *Axis, double Position)
 void Stage::WaitStageToStopMoving(const char *Axis)
 {				
 	bool bIsMoving = true;
-	double PreviousPosition=100;
+//	double PreviousPosition=100;
+	bIsMoving=IsMoving(Axis);
 	while(bIsMoving == true) {
 		Sleep(100);
 		bIsMoving=IsMoving(Axis);		
-		double Position=GetPosition(Axis);
+/*		double Position=GetPosition(Axis);
 		bool OnTarget=IsOnTarget(Axis);
 		double Velocity;
 		HandleError(C843_qVEL(ID, Axis, &Velocity),"C843_qVEL");
@@ -506,7 +502,7 @@ void Stage::WaitStageToStopMoving(const char *Axis)
 			profiler_log_file->WriteLine("ERROR: WaitStageToStopMoving: IsMoving={0}, OnTarget={1}, Velocity={2}, Acceleration={3}",bIsMoving,OnTarget,Velocity,Acceleration);
 			bIsMoving=false;
 		}
-		PreviousPosition=Position;
+		PreviousPosition=Position;*/
 	}	
 }
 
