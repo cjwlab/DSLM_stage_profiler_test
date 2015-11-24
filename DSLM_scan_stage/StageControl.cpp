@@ -622,13 +622,13 @@ void Stage::GenerateProfile()
 
 void Stage::RunProfile(){
 	
-	const char* Cluster = "AB";	// Z and X axes
-	long BlocksToconsiderIndex[2] = {0,0};	//UPB, UPD block index to be used		
-	long DataSetsPerBlocksIndex[2] = {0,0};	
+	const char* Cluster = "B";	// Z and X axes
+	long BlocksToconsiderIndex[1] = {0};	//UPB, UPD block index to be used		
+	long DataSetsPerBlocksIndex[1] = {0};	
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
 	Sleep(1000);
-	char *AxisYX = "32";
+	char *AxisYX = "2";
 	HandleError(C843_UPR(ID, AxisYX, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
 }
 // clear profile
