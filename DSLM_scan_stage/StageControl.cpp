@@ -262,7 +262,6 @@ int Stage::PerformProfilerTest(){
 	char *AxisZ = "1";
 
 	char *AxisY = "3";
-	char *AxisZX = "12";
 
 // path defition definition [mm]
 	PathPointsX[0]=0.0;
@@ -290,9 +289,9 @@ int Stage::PerformProfilerTest(){
 		MoveStageBlocking(AxisX, PathPointsX[0]);		
 		profiler_log_file->WriteLine("Move Stage Blocking X...done.");
 		profiler_log_file->WriteLine("Move Stage Blocking Z...");
-		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
+		MoveStageBlocking(AxisY, PathPointsZ[0]);		
 		profiler_log_file->WriteLine("Move Stage Blocking Z...done.");
-		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
+		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisY));				
 		Sleep(1000);
 // clear, generate and run the profile
 		ClearOldProfile();
@@ -322,16 +321,16 @@ int Stage::PerformProfilerTest(){
 
 		std::clock_t TimerEnd;
 		bool UserProfileActiveX=true;
-		bool UserProfileActiveZ=true;
+		bool UserProfileActiveY=true;
 		profiler_log_file->WriteLine("Stage position (t,X,Z)");
-		while((UserProfileActiveX==true) | (UserProfileActiveZ==true)){			
+		while((UserProfileActiveX==true) | (UserProfileActiveY==true)){			
 			UserProfileActiveX=IsUserProfileActive(AxisX);
-			UserProfileActiveZ=IsUserProfileActive(AxisZ);
+			UserProfileActiveY=IsUserProfileActive(AxisY);
 			
 			TimerEnd = std::clock();
 			double SecRange = (TimerEnd - start)/(double)(CLOCKS_PER_SEC);
 			
-			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+			profiler_log_file->WriteLine("{0:0.00000}\t\t{1:0.00000}\t\t{2:0.00000}",SecRange,Stage::GetPosition(AxisX),Stage::GetPosition(AxisY));
 			Sleep(20);
 		}
 
@@ -344,7 +343,7 @@ int Stage::PerformProfilerTest(){
 		end = std::clock();
 		double millisec = (end - start)/(double)(CLOCKS_PER_SEC / 1000);
 
-		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+		profiler_log_file->WriteLine("Stage position after the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisY));
 		profiler_log_file->WriteLine("Time elapsed={0}",millisec);
 		profiler_log_file->WriteLine("");
 		profiler_log_file->Flush();
@@ -571,13 +570,13 @@ void Stage::WaitUserProfileModeToFinish(const char *Axis)
 void Stage::GenerateProfile()
 {
 // create cluster A
-	char *AxisZX = "12";
+	char *AxisYX = "32";
 	const char* ClusterAB = "AB";
 	long DatasetPerblock[2];
 	DatasetPerblock[0]=numElementsInProfileZ;
 	DatasetPerblock[1]=numElementsInProfileX;
 	long Datasetlength[2] ={4, 4}; //time, position, velocity, acceleration
-	HandleError(C843_UPC(ID, AxisZX, ClusterAB, DatasetPerblock, Datasetlength),"create profile C843_UPC");
+	HandleError(C843_UPC(ID, AxisYX, ClusterAB, DatasetPerblock, Datasetlength),"create profile C843_UPC");
 
 // clear blocks from the clusters A (Z)	and B (X)
 	long DatasetToClear[2] = {-1 -1}; // use to clear blocks from a cluster
@@ -605,7 +604,7 @@ void Stage::GenerateProfile()
 	}
 
 // create Z axis data sets (cluster A)
-	char *AxisZ = "1";
+	char *AxisZ = "3";
 	const char* ClusterA = "A";
 
 	for(long DataSetIndex=0;DataSetIndex<numElementsInProfileZ;DataSetIndex++){
@@ -629,8 +628,8 @@ void Stage::RunProfile(){
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
 	Sleep(1000);
-	char *AxisZX = "12";
-	HandleError(C843_UPR(ID, AxisZX, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
+	char *AxisYX = "32";
+	HandleError(C843_UPR(ID, AxisYX, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
 }
 // clear profile
 void Stage::ClearOldProfile()
