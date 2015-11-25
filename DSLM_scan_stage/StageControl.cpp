@@ -286,39 +286,37 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<700){
+	while((iteration_index++)<1000){
 
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
+		double VelTemp[1];
 // move to initial position
-		profiler_log_file->WriteLine("Move Stage Blocking X...");
-		MoveStageBlocking(AxisX, PathPointsX[0]);		
-		profiler_log_file->WriteLine("Move Stage Blocking X...done.");
-		profiler_log_file->WriteLine("Move Stage Blocking Z...");
+		VelTemp[0]=2.9;
+		HandleError(C843_VEL(ID, AxisX, VelTemp),"C843_VELX");
+		VelTemp[0]=2.9;
+		HandleError(C843_VEL(ID, AxisZ, VelTemp),"C843_VELZ");
+		MoveStageBlocking(AxisX, PathPointsX[0]);				
 		MoveStageBlocking(AxisZ, PathPointsZ[0]);		
-		profiler_log_file->WriteLine("Move Stage Blocking Z...done.");
-		profiler_log_file->WriteLine("Stage position before the profile (X,Z)=({0},{1})",Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));				
-// clear, generate and run the profile
-		ClearOldProfile();
-		GenerateProfile();
-		profiler_log_file->WriteLine("");
-		ReadProfileConfiguration();
-		profiler_log_file->WriteLine("");
 
+// clear, generate and run the profile
 		std::clock_t start;
-		start = std::clock();
-		TriggerOn[0]=TRUE;
-		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
-		Sleep(100);
+		start = std::clock();		
 
 //		RunProfile();
-		
-		HandleError(C843_VEL(ID, AxisX, &(XVELtoP[1])),"C843_VELX");
+
+		VelTemp[0]=XVELtoP[1];
+		if (VelTemp[0]<0)
+			VelTemp[0]*=-1;
+		HandleError(C843_VEL(ID, AxisX, VelTemp),"C843_VELX");
 		MoveStage(AxisX, PathPointsX[4]);
 
-		double PathIndexZ=1;
-		HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
-		MoveStage(AxisZ, PathPointsX[PathIndexZ]);
+		int PathIndexZ=1;
+		VelTemp[0]=ZVELtoP[PathIndexZ*2-1];
+		if (VelTemp[0]<0)
+			VelTemp[0]*=-1;
+		HandleError(C843_VEL(ID, AxisZ, VelTemp),"C843_VELZ");
+		MoveStage(AxisZ, PathPointsZ[PathIndexZ]);
 
 		TriggerOn[0]=FALSE;
 		HandleError(C843_TRO(ID,&(TriggerLines[0]),TriggerOn,1),"C843_TRO");
@@ -347,9 +345,15 @@ int Stage::PerformProfilerTest(){
 
 			if(IsMovingZ==false){				
 				PathIndexZ++;
-				if (PathIndexZ<(numElementsInPath-1))
-					HandleError(C843_VEL(ID, AxisZ, &(ZVELtoP[PathIndexZ*2-1])),"C843_VELZ");
-					MoveStage(AxisZ, PathPointsX[PathIndexZ]);
+				if (PathIndexZ<=(numElementsInPath-1)){
+					VelTemp[0]=ZVELtoP[PathIndexZ*2-1];
+					if (VelTemp[0]<0)
+						VelTemp[0]*=-1;
+
+					HandleError(C843_VEL(ID, AxisZ, VelTemp),"C843_VELZ");
+					profiler_log_file->WriteLine("Stage position {0} (X,Z)=({1},{2})",PathIndexZ,Stage::GetPosition(AxisX),Stage::GetPosition(AxisZ));
+					MoveStage(AxisZ, PathPointsZ[PathIndexZ]);
+				}
 			}
 		}
 
