@@ -15,6 +15,7 @@ Stage::Stage()
 // initialise and open log file
 	String^ fileName = "D:\\profiler_log_file.txt";
 	profiler_log_file = gcnew StreamWriter(fileName);
+	profiler_log_file->AutoFlush = true;
 }
 
 Stage::~Stage()
@@ -102,7 +103,8 @@ int Stage::PerformProfilerTest(){
 		while(UserProfileActive==true){			
 			UserProfileActive=IsUserProfileActive(AxisX);
 		}
-		if ((Stage::GetPosition(AxisX)-36050/7200)<(-0.1)){
+//		if ((Stage::GetPosition(AxisX)-36050/7200)<(-0.1)){
+		if ((Stage::GetPosition(AxisX)-5)<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
 			errorCount++;
 		}
@@ -316,7 +318,7 @@ void Stage::GenerateProfile(const char *Axis)
 	
 	long DataSetsPerBlocksIndex[1];	//UPD
 	double ValuesToInput[4];	//UPD, Values to input: travel time, abs position, velocity.
-/*
+
 	DataSetsPerBlocksIndex[0]=0;
 	ValuesToInput[0]=1;
 	ValuesToInput[1]=0;
@@ -341,7 +343,8 @@ void Stage::GenerateProfile(const char *Axis)
 	ValuesToInput[2]=0;
 	ValuesToInput[3]=0;
 	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-	*/
+
+/*
 	DataSetsPerBlocksIndex[0]=0;
 	ValuesToInput[0]=5.0/60.0;
 	ValuesToInput[1]=0.0;
@@ -366,7 +369,7 @@ void Stage::GenerateProfile(const char *Axis)
 	ValuesToInput[2]=0.0;
 	ValuesToInput[3]=0.0;
 	HandleError(C843_UPD(ID, Cluster, BlocksToconsiderIndex, DataSetsPerBlocksIndex, ValuesToInput),"create profile C843_UPD");	//For cluster A, Block 0, Dataset 0.
-
+*/
 
 
 //	WaitStageToStopMoving(Axis);		
@@ -379,6 +382,7 @@ void Stage::RunProfile(const char *Axis){
 	long DataSetsPerBlocksIndex[1] = {0};	
 
 	HandleError(C843_UPA(ID, Cluster, BlocksToconsiderIndex),"create profile C843_UPA");	
+	Sleep(1000);
 	HandleError(C843_UPR(ID, Axis, Cluster, DataSetsPerBlocksIndex),"create profile C843_UPR");	
 }
 // clear profile
