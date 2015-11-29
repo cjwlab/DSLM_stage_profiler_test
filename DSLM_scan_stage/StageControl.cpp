@@ -283,10 +283,12 @@ int Stage::PerformProfilerTest(){
 	EvaluateProfile();
 	PathSimulator(1/ScannerFrameRate);
 
+	ConfigureRecorder();
+
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<1000){
+	while((iteration_index++)<1){
 
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
@@ -304,6 +306,8 @@ int Stage::PerformProfilerTest(){
 		start = std::clock();		
 
 //		RunProfile();
+
+		EnableRecorder();
 
 		VelTemp[0]=XVELtoP[1];
 		if (VelTemp[0]<0)
@@ -356,6 +360,9 @@ int Stage::PerformProfilerTest(){
 				}
 			}
 		}
+
+		ReadRecorderResults();
+		DisableRecorder();
 
 		if ((Stage::GetPosition(AxisX)-PathPointsX[numElementsInPath-1])<(-0.1)){
 			profiler_log_file->WriteLine("ERROR");
@@ -434,6 +441,63 @@ void Stage::ReadProfileConfiguration(){
 	 
 	
 }
+
+void Stage::ConfigureRecorder(){
+
+// all four tables
+	long iRecTableId[4]={1,2,3,4};
+// axis for tables (axis="zxyy")
+	char sRecSourceId[]={"1233"};
+//	record options (2=actual position, 74=chipset time)
+	long iRecOption[4]={2,2,2,74};
+// not used by C843_DRC command, but required later
+	long TriggerOption[4]={};
+	HandleError(C843_DRC(ID, iRecTableId, sRecSourceId, iRecOption, TriggerOption),"C843_DRC");
+
+	long iRecordTableRate=10;
+	HandleError(C843_RTR(ID, iRecordTableRate),"C843_RTR");
+}
+
+void Stage::EnableRecorder(){
+// only one table required
+	long iRecTableId[1]={0};
+// 1 = any command changing position (e.g. C843_MVR(), C843_MOV(), C843_SMO())
+	long TriggerOption[1]={1};
+// not needed
+	char sValue[2]={" "};
+// must be one
+	long iArrayLength=1;	
+	HandleError(C843_DRT(ID, iRecTableId, TriggerOption, sValue, iArrayLength),"C843_DRT enable");	
+}
+
+void Stage::DisableRecorder(){
+// only one table required
+	long iRecTableId[1]={0};
+// 0 = default setting; data recording is triggered with C843_STE()
+	long TriggerOption[1]={0};
+// not needed
+	char sValue[2]={" "};
+// must be one
+	long iArrayLength=1;	
+	HandleError(C843_DRT(ID, iRecTableId, TriggerOption, sValue, iArrayLength),"C843_DRT disable");	
+}
+
+void Stage::ReadRecorderResults(){
+
+	long piRecTableIdsArray[4]={1,2,3,4};		
+	long iNumberOfRecChannels=4;
+// start from the beginning (one based index)
+	long iOffset=1;
+// read all points of the last record session
+	long nrValues=-1;
+
+	double** pdValArray=NULL;
+	char* szGcsArrayHeader=(char *)malloc(sizeof(char)*10000);
+	long iGcsArrayHeaderMaxSize=10000;
+
+	HandleError(C843_qDRR(ID, piRecTableIdsArray, iNumberOfRecChannels, iOffset, nrValues, pdValArray, szGcsArrayHeader, iGcsArrayHeaderMaxSize),"C843_qDRR");
+}
+
 
 // Initialise stage
 void Stage::Initialize()

@@ -33,6 +33,11 @@ public:
 	static void Stage::RunProfile();
 	static void Stage::ReadProfileConfiguration();
 
+	static void Stage::ConfigureRecorder();
+	static void Stage::EnableRecorder();
+	static void Stage::DisableRecorder();
+	static void Stage::ReadRecorderResults();
+
 	static void Stage::ClearOldProfile();
 
 	static String^ Stage::ReadError();
