@@ -284,8 +284,6 @@ int Stage::PerformProfilerTest(){
 	EvaluateProfile();
 	PathSimulator(1/ScannerFrameRate);
 
-	ConfigureRecorder();
-
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
@@ -433,8 +431,7 @@ void Stage::ReadProfileConfiguration(){
 	
 }
 
-void Stage::ConfigureRecorder(){
-
+void Stage::EnableRecorder(){
 // all four tables
 	long iRecTableId[4]={1,2,3,4};
 // axis for tables (axis="zxyx")
@@ -448,31 +445,27 @@ void Stage::ConfigureRecorder(){
 	long iRecordTableRate=25;
 	HandleError(C843_RTR(ID, iRecordTableRate),"C843_RTR");
 
-	DisableRecorder();
-}
-
-void Stage::EnableRecorder(){
 // only one table required
-	long iRecTableId[1]={0};
+	long iRecTableIdDRT[1]={0};
 // 1 = any command changing position (e.g. C843_MVR(), C843_MOV(), C843_SMO())
-	long TriggerOption[1]={1};
+	long TriggerOptionDRT[1]={1};
 // not needed
 	char sValue[2]={" "};
 // must be one
 	long iArrayLength=1;	
-	HandleError(C843_DRT(ID, iRecTableId, TriggerOption, sValue, iArrayLength),"C843_DRT enable");	
+	HandleError(C843_DRT(ID, iRecTableIdDRT, TriggerOptionDRT, sValue, iArrayLength),"C843_DRT enable");	
 }
 
 void Stage::DisableRecorder(){
-// only one table required
-	long iRecTableId[1]={0};
-// 0 = default setting; data recording is triggered with C843_STE()
-	long TriggerOption[1]={0};
-// not needed
-	char sValue[2]={" "};
-// must be one
-	long iArrayLength=1;	
-	HandleError(C843_DRT(ID, iRecTableId, TriggerOption, sValue, iArrayLength),"C843_DRT disable");	
+// all four tables
+	long iRecTableId[4]={1,2,3,4};
+// axis for tables (axis="zxyx")
+	char sRecSourceId[]={"1232"};
+//	record options (2=actual position, 74=chipset time)
+	long iRecOption[4]={0,0,0,0};
+// not used by C843_DRC command, but required later
+	long TriggerOption[4]={};
+	HandleError(C843_DRC(ID, iRecTableId, sRecSourceId, iRecOption, TriggerOption),"C843_DRC");
 }
 
 void Stage::ReadRecorderResults(){
