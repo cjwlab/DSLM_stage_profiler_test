@@ -287,7 +287,7 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<10){
+	while((iteration_index++)<100){
 
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
