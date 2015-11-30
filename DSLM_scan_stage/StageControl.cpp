@@ -5,6 +5,7 @@
 //#include "winmcl32_api.h"
 #include <math.h>
 #include <ctime>
+#include <fstream> 
 
 using namespace System::IO;
 using namespace stageNameSpace;
@@ -288,7 +289,7 @@ int Stage::PerformProfilerTest(){
 	int errorCount=0;
 // a loop for iterating the profile
 	int iteration_index=0;
-	while((iteration_index++)<1){
+	while((iteration_index++)<10){
 
 		profiler_log_file->WriteLine("Iteration: {0}", iteration_index);
 
@@ -411,16 +412,6 @@ void Stage::ReadProfileConfiguration(){
 		profiler_log_file->WriteLine("qUPB: cluster B (X), block {0}, value{1}={2}",BlockIndex[0],iPararray[0],dValarray0[0]);
 	}
 
-/*
-	long iPararray[1];
-	long iCmdarray[1];
-	for (int i=0;i<2;i++){
-		iCmdarray[0]=i;
-		HandleError(C843_qUPA(ID, "A",iCmdarray, iPararray),"C843_qUPA ");
-		profiler_log_file->WriteLine("qUPA: cluster A, {0}={1}",iCmdarray[0],iPararray[0]);
-	}
-*/
-
 // query the data set configuration
 	long iCmdarray[1];
 	iCmdarray[0]=0;
@@ -446,16 +437,18 @@ void Stage::ConfigureRecorder(){
 
 // all four tables
 	long iRecTableId[4]={1,2,3,4};
-// axis for tables (axis="zxyy")
-	char sRecSourceId[]={"1233"};
+// axis for tables (axis="zxyx")
+	char sRecSourceId[]={"1232"};
 //	record options (2=actual position, 74=chipset time)
 	long iRecOption[4]={2,2,2,74};
 // not used by C843_DRC command, but required later
 	long TriggerOption[4]={};
 	HandleError(C843_DRC(ID, iRecTableId, sRecSourceId, iRecOption, TriggerOption),"C843_DRC");
 
-	long iRecordTableRate=10;
+	long iRecordTableRate=25;
 	HandleError(C843_RTR(ID, iRecordTableRate),"C843_RTR");
+
+	DisableRecorder();
 }
 
 void Stage::EnableRecorder(){
@@ -491,11 +484,77 @@ void Stage::ReadRecorderResults(){
 // read all points of the last record session
 	long nrValues=-1;
 
-	double** pdValArray=NULL;
-	char* szGcsArrayHeader=(char *)malloc(sizeof(char)*10000);
-	long iGcsArrayHeaderMaxSize=10000;
+// allocate memory for the stage data set (this structure is not documented anywhere and might not be correct)
+// IF MEMORY ERRORS OCCUR CHECK THIS
+	double** pdValArray=(double **)malloc(sizeof(double *)*1);		
+	pdValArray[0]=(double *)malloc(sizeof(double)*32256);
 
+	char* szGcsArrayHeader=(char *)malloc(sizeof(char)*1000);
+	long iGcsArrayHeaderMaxSize=1000;
+
+// read header and data from the stage
 	HandleError(C843_qDRR(ID, piRecTableIdsArray, iNumberOfRecChannels, iOffset, nrValues, pdValArray, szGcsArrayHeader, iGcsArrayHeaderMaxSize),"C843_qDRR");
+	
+// read required parameters from the stage data set header
+	int DimValue;
+	float SampleTimeValue;
+	int NDataValue;
+	ReadHeaderParameters(szGcsArrayHeader,&DimValue,&SampleTimeValue,&NDataValue);
+
+// check that correct number of data has been read from the stage
+	long NumPoints=C843_GetAsyncBufferIndex(ID);
+	while(NumPoints!=DimValue*NDataValue){
+		NumPoints=C843_GetAsyncBufferIndex(ID);
+		Sleep(10);
+	}
+
+// document values
+	profiler_log_file->WriteLine("Actual stage position (t,X,Y,Z)");
+	for(int ReadIndex=0;ReadIndex<NumPoints;ReadIndex+=DimValue)	
+		profiler_log_file->WriteLine("{0}\t{1}\t{2}\t{3}",(pdValArray[0][ReadIndex+3]-pdValArray[0][0+3])*0.000410,pdValArray[0][ReadIndex+1],pdValArray[0][ReadIndex+2],pdValArray[0][ReadIndex+0]);
+}
+
+// find DIM, SAMPLE_TIME and NDATA values from the stage header
+void Stage::ReadHeaderParameters(char* StringIn,int *DimValue,float *SampleTimeValue, int *NDataValue){
+	char KeyWord[20];
+	char KeyDim[] = "DIM";	
+	char KeySampleTime[] = "SAMPLE_TIME";
+	char KeyNData[] = "NDATA";
+
+	char *LineOut=(char *)malloc(sizeof(char)*100);	
+	int StartIndex=0;
+	int NumParamFound=0;
+	while(NumParamFound!=3){
+		GetLine(StringIn,&StartIndex,LineOut);
+		sscanf(LineOut,"# %s",KeyWord);
+		if (strcmp(KeyWord,KeyDim)==0){
+			NumParamFound++;			
+			sscanf(LineOut,"# %s = %d",KeyWord,DimValue);			
+		}
+		if (strcmp(KeyWord,KeySampleTime)==0){
+			NumParamFound++;			
+			sscanf(LineOut,"# %s = %f",KeyWord,SampleTimeValue);			
+		}
+		if (strcmp(KeyWord,KeyNData)==0){
+			NumParamFound++;			
+			sscanf(LineOut,"# %s = %d",KeyWord,NDataValue);			
+		}
+	}
+}
+
+// read and return one line from the stage header 
+void Stage::GetLine(char* StringIn,int* StartIndex,char* LineOut){	
+// find first # character
+	while(StringIn[*StartIndex]!='#')
+		(*StartIndex)++;
+	int CurIndex=0;
+// find first \n character
+	while(StringIn[*StartIndex]!='\n'){
+		LineOut[CurIndex]=StringIn[*StartIndex];
+		(*StartIndex)++;
+		CurIndex++;
+	}
+	LineOut[CurIndex]='\0';
 }
 
 

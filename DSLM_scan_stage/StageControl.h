@@ -37,6 +37,8 @@ public:
 	static void Stage::EnableRecorder();
 	static void Stage::DisableRecorder();
 	static void Stage::ReadRecorderResults();
+	static void Stage::GetLine(char* StringIn,int* StartIndex,char* LineOut);
+	static void Stage::ReadHeaderParameters(char* StringIn,int *DimValue,float *SampleTimeValue, int *NDataValue);
 
 	static void Stage::ClearOldProfile();
 
